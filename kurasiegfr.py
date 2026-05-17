@@ -158,6 +158,8 @@ def patient_visit_frequency(
 
     })
 
+    intervals_df = intervals_df[intervals_df["interval_days"] >= 90]
+
     # Distribusi hari
     freq_days = intervals_df["interval_days"].value_counts().sort_index()
 
