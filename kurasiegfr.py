@@ -226,5 +226,3 @@ if __name__ == "__main__":
         df_combined_interval.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasiegfrcombinedinterval.xlsx")
         
         df_combined.info()
-
-
