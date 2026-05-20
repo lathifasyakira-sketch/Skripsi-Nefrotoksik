@@ -237,8 +237,10 @@ def clean_patient_names(df,
 
     extracted_mr = df[col].str.extract(r'-(?:\d+)-(\d+)')[0]
 
-    mask = df[mr_col].isna() | (df[mr_col].astype(str).str.strip() == "")
-    df.loc[mask, mr_col] = extracted_mr[mask]
+    df[mr_col] = df[mr_col].astype("string")
+
+    mask = df[mr_col].isna() | (df[mr_col].str.strip() == "")
+    df.loc[mask, mr_col] = extracted_mr[mask].astype("string")
 
     def clean_name(x):
         if pd.isna(x):
