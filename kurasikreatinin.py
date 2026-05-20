@@ -24,7 +24,7 @@ def filter_excel_by_keyword(
     output_prefix : str
         Awalan nama file output (default: "LT").
     output_suffix : str
-        Akhiran nama file output (default: "Kreatininr").
+        Akhiran nama file output (default: "Kreatinin").
 
     Returns
     -------
