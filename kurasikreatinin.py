@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 
 def filter_excel_by_keyword(
     excel_files_pattern,
-    list_sortir,
+    filter_keyword,
     column_name="Test Name",
     output_prefix="LT",
-    output_suffix="Kreatinin"
+    output_suffix="Kreatin"
 ):
     """
     Membaca file Excel berdasarkan pola, memfilter baris berdasarkan keyword,
@@ -33,8 +33,7 @@ def filter_excel_by_keyword(
 
     excel_files = glob.glob(excel_files_pattern)
     print(f"Found {len(excel_files)} Excel files matching the pattern '{excel_files_pattern}'.")
-    pattern = "|".join(list_sortir)
-    
+
     for file_path in excel_files:
         print(f"\nProcessing file: {file_path}")
 
@@ -47,11 +46,11 @@ def filter_excel_by_keyword(
         df_filtered = df[
             df[column_name]
             .astype(str)
-            .str.contains(pattern, case=False, na=False, regex=True)
+            .str.contains(filter_keyword, case=True, na=False)
         ]
 
         if df_filtered.empty:
-            print(f"Tidak ditemukan data '{list_sortir}'. Tidak ada file disimpan.")
+            print(f"Tidak ditemukan data '{filter_keyword}'. Tidak ada file disimpan.")
             continue
 
         # Ambil nama bulan / identifier dari nama file
@@ -78,10 +77,10 @@ def load_and_combine_excel_data(glob_pattern: str,
     for file_path in excel_files:
         df = pd.read_excel(file_path)
 
-        month = file_path.split(' ')[-2].replace('.xlsx', '')
+        month = file_path.split(' ')[-3].replace('.xlsx', '')
 
         df['Bulan'] = month
-        df['Tahun'] = year
+        df['Tahun'] = file_path.split(' ')[-2].replace('.xlsx', '')
 
         df_list.append(df)
 
@@ -131,6 +130,8 @@ def patient_visit_frequency(
 
     intervals_days = []
     intervals_weeks = []
+    billing_no = []
+    med_rec = []
 
     # Mengitung interval antar kunjungan per pasien
     for _, group in df.groupby(patient_col):
@@ -138,26 +139,33 @@ def patient_visit_frequency(
 
         if len(dates) < 2:
             continue
-
+        
         deltas = dates.diff().dropna()
-        intervals_days.append(deltas.dt.days.max())
-        intervals_weeks.append(deltas.dt.days.max() / 7)
+        intervals_week = (deltas.dt.days.max() / 7)
+
+        if intervals_week > 12:
+            intervals_days.append(deltas.dt.days.max())
+            intervals_weeks.append(deltas.dt.days.max() / 7)
+            billing_no.append(list(group["Billing No."]))
+            med_rec.append(group["Medical Record No."].values[0])
+
 
     intervals_df = pd.DataFrame({
         "interval_days": intervals_days,
-        "interval_weeks": intervals_weeks
+        "interval_weeks": intervals_weeks,
+        "billing": billing_no,
+        "Medical Record No.": med_rec
+
     })
+
+    intervals_df = intervals_df[intervals_df["interval_days"] >= 90]
 
     # Distribusi hari
     freq_days = intervals_df["interval_days"].value_counts().sort_index()
 
     # Bin mingguan 
-    bins = [1, 2, 4, 8, 12, 24, 52, 1000]
+    bins = [12, 24, 52, 1000]
     labels = [
-        "1–2 minggu",
-        "2–4 minggu",
-        "1–2 bulan",
-        "2–3 bulan",
         "3–6 bulan",
         "6–12 bulan",
         ">12 bulan"
@@ -194,26 +202,30 @@ def patient_visit_frequency(
     return intervals_df, freq_days, freq_weeks
 
 if __name__ == "__main__":
-    if 1: # Kode untuk Memfilter
+    if 0: # Kode untuk Memfilter
         filter_excel_by_keyword(
         excel_files_pattern="/Users/lathifasyakira/Desktop/SKRIPSI/LabTest/LT *.xlsx",
         list_sortir=(
-                 "Kreatinin Darah",
-                 "Bersihan Kreatinin"
-                 )  
+                    "Kreatinin Darah",
+                    "Bersihan Kreatinin"
+                    )
         )
     
         print("selesai")
 
-    if 0: # Kode untuk menggabungkan
-        excel_file_template = "LT {Bulan}.xlsx"
+    if 1: # Kode untuk menggabungkan
+        excel_file_template = "LT {Bulan} Kreatinin.xlsx"
         glob_pattern = f"/Users/lathifasyakira/Desktop/SKRIPSI/kurasikreatinin/{excel_file_template.replace('{Bulan}', '*')}"
-
         df_combined = load_and_combine_excel_data(glob_pattern)
         df_combined.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasikreatinincombined.xlsx")
 
-        patient_visit_frequency(df_combined)
+        intervals_df, freq_days, freq_weeks= patient_visit_frequency(df_combined)
 
 
         print(df_combined.head())
+        intervals_df.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasikreatinininterval.xlsx")
+        list_mr_intervals = intervals_df["Medical Record No."].tolist()
+        df_combined_interval = df_combined[df_combined["Medical Record No."].isin(list_mr_intervals)]
+        df_combined_interval.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasikreatinincombinedinterval.xlsx")
+        
         df_combined.info()
