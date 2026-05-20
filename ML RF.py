@@ -254,7 +254,7 @@ def run_ml_experiment(
         "bootstrap": [True, False]
     }
 
-    kfold = KFold(
+    kfold = kfold(
         n_splits=5,
         shuffle=True,
         random_state=42
@@ -654,7 +654,7 @@ def run_rf_classification(
     file_path,
     output_excel,
     batas_atas=-9,
-    batas_bawah=-15
+    batas_bawah=-10
 ):
 
     df = pd.read_excel(file_path)
@@ -705,7 +705,7 @@ def run_rf_classification(
         "n_estimators": [50, 100, 1000],
         "max_features": ["log2", "sqrt"],
         "max_depth": [
-            None, 5, 10, 15, 20,
+            None, 1, 2, 3, 4, 5, 10, 15, 20,
             25, 30, 35, 40, 45, 50
         ],
         "min_samples_split": [2, 3, 5, 7, 10],
@@ -715,7 +715,7 @@ def run_rf_classification(
 
     print("\n=== TUNING RF CLASSIFIER ===")
 
-    kfold = KFold(
+    StratifyKFold = KFold(
         n_splits=5,
         shuffle=True,
         random_state=42
@@ -724,11 +724,12 @@ def run_rf_classification(
     grid = GridSearchCV(
         RandomForestClassifier(
             random_state=42,
-            n_jobs=-1
+            n_jobs=-1,
+            class_weight = "balanced"
         ),
         param_grid,
-        cv=kfold,
-        scoring="f1",
+        cv=StratifyKFold,
+        scoring="average_precision",
         n_jobs=-1,
         verbose=1
     )
@@ -755,7 +756,8 @@ def run_rf_classification(
         model = RandomForestClassifier(
             **grid.best_params_,
             random_state=42,
-            n_jobs=-1
+            n_jobs=-1,
+            class_weight = "balanced"
         )
 
         model.fit(X_train, y_train)
@@ -883,6 +885,162 @@ def run_rf_classification(
 
     print("\n=== SELESAI RF CLASSIFICATION ===")
 
+from sklearn.metrics import (
+    confusion_matrix,
+    ConfusionMatrixDisplay
+)
+
+def plot_confusion_matrix_excel(
+    excel_path,
+    output_png="confusion_matrix.png",
+    y_true_col="y_true",
+    y_pred_col="y_pred"
+):
+
+    df = pd.read_excel(excel_path)
+
+    y_true = df[y_true_col]
+    y_pred = df[y_pred_col]
+
+    cm = confusion_matrix(y_true, y_pred)
+
+    print("\n=== CONFUSION MATRIX ===")
+    print(cm)
+
+    # CUSTOM COLOR MATRIX
+    # urutan:
+    # [[TN, FP],
+    #  [FN, TP]]
+
+    color_matrix = np.array([
+        ["pink", "lightgreen"],
+        ["lightblue", "steelblue"]
+    ])
+
+    # CONVERT COLOR TO RGB
+    import matplotlib.colors as mcolors
+
+    rgb_matrix = np.empty((2,2,4))
+
+    for i in range(2):
+        for j in range(2):
+            rgb_matrix[i,j] = mcolors.to_rgba(
+                color_matrix[i,j]
+            )
+
+    # PLOT
+    fig, ax = plt.subplots(figsize=(6,6))
+
+    ax.imshow(rgb_matrix)
+
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+
+            ax.text(
+                j,
+                i,
+                str(cm[i, j]),
+                ha="center",
+                va="center",
+                fontsize=16,
+                color="black",   # TEXT HITAM
+                fontweight="bold"
+            )
+
+    ax.set_xlabel("Predicted Label", fontsize=12)
+    ax.set_ylabel("True Label", fontsize=12)
+
+    ax.set_xticks([0,1])
+    ax.set_yticks([0,1])
+
+    ax.set_title("Confusion Matrix", fontsize=14)
+
+    plt.tight_layout()
+
+    # SAVE
+    plt.savefig(
+        output_png,
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+
+    print(f"\nPlot saved to: {output_png}")
+
+def extract_rf_feature_importance(
+    model_path,
+    feature_columns,
+    output_excel=None,
+    top_n=None,
+    plot=True
+):
+    """
+    Extract feature importance dari RandomForestClassifier (.pkl)
+
+    Parameters
+    ----------
+    model_path : str
+        Path file .pkl hasil joblib.dump()
+
+    feature_columns : list
+        List nama feature sesuai urutan saat training
+
+    output_excel : str, optional
+        Path excel output
+
+    top_n : int, optional
+        Ambil top N feature saja
+
+    plot : bool
+        Apakah ditampilkan barplot
+
+    Returns
+    -------
+    importance_df : pd.DataFrame
+    """
+
+    model = joblib.load(model_path)
+
+    importance_df = pd.DataFrame({
+        "feature": feature_columns,
+        "importance": model.feature_importances_
+    })
+
+    importance_df = importance_df.sort_values(
+        by="importance",
+        ascending=False
+    ).reset_index(drop=True)
+
+    # TOP N
+    if top_n is not None:
+        importance_df = importance_df.head(top_n)
+
+    print("\n=== FEATURE IMPORTANCE ===")
+    print(importance_df)
+
+    if output_excel is not None:
+        importance_df.to_excel(output_excel, index=False)
+        print(f"\nSaved to: {output_excel}")
+
+    if plot:
+
+        plt.figure(figsize=(10, max(5, len(importance_df)*0.3)))
+
+        plt.barh(
+            importance_df["feature"][::-1],
+            importance_df["importance"][::-1]
+        )
+
+        plt.xlabel("Importance")
+        plt.ylabel("Feature")
+        plt.title("Random Forest Feature Importance")
+
+        plt.tight_layout()
+        plt.show()
+
+    return importance_df
+
 if __name__ == "__main__":  
     if 0: # eGFRR delta
         df_delta = build_egfr_delta(
@@ -904,7 +1062,7 @@ if __name__ == "__main__":
         
         print("selesai")
 
-    if 1: # ML RF REGRESI ORIGINAL DELTA   
+    if 0: # ML RF REGRESI ORIGINAL DELTA   
         run_ml_experiment(
             file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_maks_diuretik.xlsx",
             output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Regresi/hasil_weight_maks_diur.xlsx"
@@ -922,10 +1080,65 @@ if __name__ == "__main__":
 
     if 0: # ML RF KLASIFIKASI
         run_rf_classification(
-            file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_maks_diuretik.xlsx",
-            output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Klasifikasi/hasil_class_weight_maks_diur.xlsx",
+            file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_akum_diuretik.xlsx",
+            output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx",
             batas_atas=-9,
-            batas_bawah=-15
+            batas_bawah=-10
             )
         
         print("selesai rf classification") 
+
+    if 1: # Confussion Matrix
+        plot_confusion_matrix_excel(
+            excel_path="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur_prediction_run1.xlsx",
+            output_png="cm_run1.png"
+            )
+        
+        print("selesai CM") 
+
+    if 0: # Feature Importance
+        file_path= "/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_akum_diuretik.xlsx"
+        output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx"
+        batas_atas=-9,
+        batas_bawah=-10
+
+        df = pd.read_excel(file_path)
+
+        df = df.dropna(subset=["delta", "days"])
+
+        df = df[df["days"] > 0]
+
+        df["delta_90hari"] = (
+            df["delta"] / df["days"]
+        ) * 90
+
+        df = df[
+            (df["delta_90hari"] > batas_atas) |
+            (df["delta_90hari"] < batas_bawah)
+        ].copy()
+
+        df["target"] = np.where(
+            df["delta_90hari"] < batas_bawah,
+            1,
+            0
+        )
+
+        X = df.drop(columns=[
+            "MRN",
+            "delta",
+            "days",
+            "delta_90hari",
+            "target"
+        ])
+
+        X = X.fillna(0)
+
+        feat_imp = extract_rf_feature_importance(
+            model_path=output_excel.replace(".xlsx", ".pkl"),
+            feature_columns=X.columns.tolist(),
+            output_excel=output_excel.replace(".xlsx", "_feature_importance.xlsx"),
+
+            top_n=30
+        )
+
+        print("selesai")
