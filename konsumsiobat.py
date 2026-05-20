@@ -290,7 +290,7 @@ if __name__ == "__main__":
 
         print ("bismillah")
 
-    if 0: #Menghilangkan BMHP dan menyatukan obat
+    if 1: #Menghilangkan BMHP dan menyatukan obat
         df_items = extract_unique_items(
         input_path=r"/Users/lathifasyakira/Desktop/SKRIPSI/konsumsiobatpasiendiuretik.xlsx",
         output_path=r"/Users/lathifasyakira/Desktop/SKRIPSI/konsumsiobatpasiendiuretik_filtered.xlsx"
@@ -306,7 +306,7 @@ if __name__ == "__main__":
 
         print(df_result.head())
 
-    if 1: #Agregasi akumulasi
+    if 0: #Agregasi akumulasi
         df_konsumsi = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/konsumsiobatpasiendiuretik.xlsx")
         df_nefro = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/Nefrotoksik.xlsx")
         
