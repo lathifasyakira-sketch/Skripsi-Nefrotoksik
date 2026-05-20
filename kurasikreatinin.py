@@ -198,9 +198,9 @@ if __name__ == "__main__":
         filter_excel_by_keyword(
         excel_files_pattern="/Users/lathifasyakira/Desktop/SKRIPSI/LabTest/LT *.xlsx",
         list_sortir=(
-                 "Kreatinin Darah"
+                 "Kreatinin Darah",
                  "Bersihan Kreatinin"
-                 ),  
+                 )  
         )
     
         print("selesai")
