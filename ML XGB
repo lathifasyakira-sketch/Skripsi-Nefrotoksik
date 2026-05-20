@@ -1,0 +1,527 @@
+import pandas as pd
+import re
+import numpy as np
+import matplotlib.pyplot as plt
+import joblib
+from xgboost import XGBRegressor
+from sklearn.model_selection import (train_test_split, GridSearchCV, KFold)
+from sklearn.metrics import (r2_score, mean_absolute_error, mean_squared_error)
+from scipy.stats import spearmanr
+
+
+def run_xgboost_experiment(
+    file_path,
+    output_excel
+):
+
+    df = pd.read_excel(file_path)
+
+    df = df.dropna(subset=["delta"])
+
+    y = df["delta"]
+
+    mrn = df["MRN"]
+
+    X = df.drop(columns=[
+        "MRN",
+        "delta"
+    ])
+
+    X = X.fillna(0)
+
+    # HYPERPARAMETER
+    param_grid = {
+        "n_estimators": [100, 300],
+        "max_depth": [3, 5, 7],
+        "learning_rate": [0.01, 0.05, 0.1],
+        "subsample": [0.8, 1.0],
+        "colsample_bytree": [0.8, 1.0]
+    }
+
+    kfold = KFold(
+        n_splits=5,
+        shuffle=True,
+        random_state=42
+    )
+
+    print("=== TUNING XGBOOST ===")
+
+    grid = GridSearchCV(
+        XGBRegressor(
+            objective="reg:squarederror",
+            random_state=42,
+            n_jobs=-1
+        ),
+        param_grid,
+        cv=kfold,
+        scoring="neg_mean_absolute_error",
+        n_jobs=-1,
+        verbose=1
+    )
+
+    grid.fit(X, y)
+
+    print("Best params:", grid.best_params_)
+
+    results = []
+
+    for run in range(5):
+
+        print(f"\n===== TEST RUN {run+1} =====")
+
+        X_train, X_test, y_train, y_test, mrn_train, mrn_test = train_test_split(
+            X,
+            y,
+            mrn,
+            test_size=0.2,
+            random_state=run
+        )
+
+        model = XGBRegressor(
+            objective="reg:squarederror",
+            random_state=42,
+            n_jobs=-1,
+            **grid.best_params_
+        )
+
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+
+        r2 = r2_score(y_test, y_pred)
+
+        mae = mean_absolute_error(y_test, y_pred)
+
+        rmse = np.sqrt(
+            mean_squared_error(y_test, y_pred)
+        )
+
+        spearman_corr, _ = spearmanr(
+            y_test,
+            y_pred
+        )
+
+        print(f"R2: {r2:.3f}")
+        print(f"MAE: {mae:.3f}")
+        print(f"RMSE: {rmse:.3f}")
+        print(f"Spearman: {spearman_corr:.3f}")
+
+        pred_df = pd.DataFrame({
+            "MRN": mrn_test.values,
+            "y_true": y_test.values,
+            "y_pred": y_pred
+        })
+
+        pred_path = output_excel.replace(
+            ".xlsx",
+            f"_prediction_run{run+1}.xlsx"
+        )
+
+        pred_df.to_excel(pred_path, index=False)
+
+        plt.figure(figsize=(6, 6))
+
+        plt.scatter(y_test, y_pred, alpha=0.7)
+
+        min_val = min(
+            y_test.min(),
+            y_pred.min()
+        )
+
+        max_val = max(
+            y_test.max(),
+            y_pred.max()
+        )
+
+        plt.plot(
+            [min_val, max_val],
+            [min_val, max_val],
+            linestyle="--"
+        )
+
+        plt.xlabel("Actual Delta")
+
+        plt.ylabel("Predicted Delta")
+
+        plt.title(f"XGBoost Y-Y Plot Run {run+1}")
+
+        plt.tight_layout()
+
+        plot_path = output_excel.replace(
+            ".xlsx",
+            f"_yyplot_run{run+1}.png"
+        )
+
+        plt.savefig(plot_path, dpi=300)
+
+        plt.close()
+
+        results.append({
+            "run": run+1,
+            "r2": r2,
+            "mae": mae,
+            "rmse": rmse,
+            "spearman": spearman_corr
+        })
+
+    results_df = pd.DataFrame(results)
+
+    summary = pd.DataFrame({
+        "metric": ["mean", "std"],
+        "r2": [
+            results_df["r2"].mean(),
+            results_df["r2"].std()
+        ],
+        "mae": [
+            results_df["mae"].mean(),
+            results_df["mae"].std()
+        ],
+        "rmse": [
+            results_df["rmse"].mean(),
+            results_df["rmse"].std()
+        ],
+        "spearman": [
+            results_df["spearman"].mean(),
+            results_df["spearman"].std()
+        ]
+    })
+
+    joblib.dump(
+    model,
+    output_excel.replace(".xlsx", ".pkl")
+    )
+
+    with pd.ExcelWriter(output_excel) as writer:
+
+        results_df.to_excel(
+            writer,
+            sheet_name="per_run",
+            index=False
+        )
+
+        summary.to_excel(
+            writer,
+            sheet_name="summary",
+            index=False
+        )
+
+    print("\n=== SELESAI XGBOOST ===")
+
+from xgboost import XGBClassifier
+
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    confusion_matrix
+)
+
+
+def run_xgboost_classification(
+    file_path,
+    output_excel,
+    batas_atas=-9,
+    batas_bawah=-10
+):
+
+    df = pd.read_excel(file_path)
+
+    df = df.dropna(subset=["delta", "days"])
+
+    df = df[df["days"] > 0]
+
+    df["delta_90hari"] = (
+        df["delta"] / df["days"]
+    ) * 90
+
+    df = df[
+        (df["delta_90hari"] > batas_atas) |
+        (df["delta_90hari"] < batas_bawah)
+    ].copy()
+
+    df["target"] = np.where(
+        df["delta_90hari"] < batas_bawah,
+        1,
+        0
+    )
+
+    print("\n=== DISTRIBUSI TARGET ===")
+    print(df["target"].value_counts())
+
+    # TARGET
+    y = df["target"]
+
+    mrn = df["MRN"]
+
+    # FEATURE
+    X = df.drop(columns=[
+        "MRN",
+        "delta",
+        "days",
+        "delta_90hari",
+        "target"
+    ])
+
+    X = X.fillna(0)
+
+    scale_pos_weight = (
+        (y == 0).sum() / (y == 1).sum()
+    )
+
+    print("\nscale_pos_weight:", scale_pos_weight)
+
+    # HYPERPARAMETER
+    param_grid = {
+
+        "n_estimators": [50, 100, 300],
+
+        "max_depth": [2, 3, 4, 5, 7],
+
+        "learning_rate": [
+            0.01,
+            0.05,
+            0.1,
+            0.2
+        ],
+
+        "subsample": [
+            0.8,
+            1.0
+        ],
+
+        "colsample_bytree": [
+            0.8,
+            1.0
+        ]
+    }
+
+    print("\n=== TUNING XGBOOST CLASSIFIER ===")
+
+    StratifyKFold = KFold(
+        n_splits=5,
+        shuffle=True,
+        random_state=42
+    )
+
+    grid = GridSearchCV(
+
+        XGBClassifier(
+            random_state=42,
+            n_jobs=-1,
+            eval_metric="logloss",
+            scale_pos_weight=scale_pos_weight
+        ),
+
+        param_grid,
+
+        cv=StratifyKFold,
+
+        scoring="average_precision",
+
+        n_jobs=-1,
+
+        verbose=1
+    )
+
+    grid.fit(X, y)
+
+    print("Best params:", grid.best_params_)
+
+    results = []
+
+    for run in range(5):
+
+        print(f"\n===== TEST RUN {run+1} =====")
+
+        X_train, X_test, y_train, y_test, mrn_train, mrn_test = train_test_split(
+            X,
+            y,
+            mrn,
+            test_size=0.2,
+            random_state=run,
+            stratify=y
+        )
+
+        model = XGBClassifier(
+            **grid.best_params_,
+            random_state=42,
+            n_jobs=-1,
+            eval_metric="logloss",
+            scale_pos_weight=scale_pos_weight
+        )
+
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+
+        y_prob = model.predict_proba(X_test)[:,1]
+
+        # METRICS
+        acc = accuracy_score(y_test, y_pred)
+
+        precision = precision_score(
+            y_test,
+            y_pred,
+            zero_division=0
+        )
+
+        recall = recall_score(
+            y_test,
+            y_pred,
+            zero_division=0
+        )
+
+        f1 = f1_score(
+            y_test,
+            y_pred,
+            zero_division=0
+        )
+
+        auc = roc_auc_score(
+            y_test,
+            y_prob
+        )
+
+        cm = confusion_matrix(
+            y_test,
+            y_pred
+        )
+
+        print(f"Accuracy : {acc:.3f}")
+        print(f"Precision: {precision:.3f}")
+        print(f"Recall   : {recall:.3f}")
+        print(f"F1 Score : {f1:.3f}")
+        print(f"AUC      : {auc:.3f}")
+
+        print("\nConfusion Matrix")
+        print(cm)
+
+        # SAVE PREDICTION
+        pred_df = pd.DataFrame({
+            "MRN": mrn_test.values,
+            "y_true": y_test.values,
+            "y_pred": y_pred,
+            "y_prob": y_prob
+        })
+
+        pred_path = output_excel.replace(
+            ".xlsx",
+            f"_prediction_run{run+1}.xlsx"
+        )
+
+        pred_df.to_excel(
+            pred_path,
+            index=False
+        )
+
+        # SAVE RESULT
+        results.append({
+
+            "run": run+1,
+
+            "accuracy": acc,
+
+            "precision": precision,
+
+            "recall": recall,
+
+            "f1": f1,
+
+            "auc": auc
+        })
+
+    joblib.dump(
+        model,
+        output_excel.replace(".xlsx", ".pkl")
+    )
+
+    feature_importance = pd.DataFrame({
+
+        "feature": X.columns,
+
+        "importance": model.feature_importances_
+    })
+
+    feature_importance = feature_importance.sort_values(
+        by="importance",
+        ascending=False
+    )
+
+    feature_importance.to_excel(
+
+        output_excel.replace(
+            ".xlsx",
+            "_feature_importance.xlsx"
+        ),
+
+        index=False
+    )
+
+    results_df = pd.DataFrame(results)
+
+    summary = pd.DataFrame({
+
+        "metric": ["mean", "std"],
+
+        "accuracy": [
+            results_df["accuracy"].mean(),
+            results_df["accuracy"].std()
+        ],
+
+        "precision": [
+            results_df["precision"].mean(),
+            results_df["precision"].std()
+        ],
+
+        "recall": [
+            results_df["recall"].mean(),
+            results_df["recall"].std()
+        ],
+
+        "f1": [
+            results_df["f1"].mean(),
+            results_df["f1"].std()
+        ],
+
+        "auc": [
+            results_df["auc"].mean(),
+            results_df["auc"].std()
+        ]
+    })
+
+    with pd.ExcelWriter(output_excel) as writer:
+
+        results_df.to_excel(
+            writer,
+            sheet_name="per_run",
+            index=False
+        )
+
+        summary.to_excel(
+            writer,
+            sheet_name="summary",
+            index=False
+        )
+
+    print("\n=== SELESAI XGBOOST CLASSIFICATION ===")
+
+if __name__ == "__main__": 
+    if 1: # XG BOOST REGRESI
+        run_xgboost_experiment(
+            file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_onehot_maks_diuretik.xlsx",
+            output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILXGB/hasil_xgboost.xlsx"
+        )
+
+    print("selesai xgboost regresi")
+
+    if 0: #XG BOOST KLASIFIKASI
+        run_xgboost_classification(
+            file_path="data.xlsx",
+            output_excel="hasil_xgboost.xlsx",
+            batas_atas=-9,
+            batas_bawah=-10
+        )
+
+    print("selesai xgboost regresi")
