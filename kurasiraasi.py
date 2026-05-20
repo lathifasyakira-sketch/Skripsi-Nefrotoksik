@@ -742,7 +742,9 @@ if __name__ == "__main__":
         glob_pattern = f"/Users/lathifasyakira/Desktop/SKRIPSI/kurasiraasi/{excel_file_template.replace('{Bulan}', '*')}"
         df_combined = load_and_combine_excel_data(glob_pattern)
         df_combined.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasiscraasicombined.xlsx")
-
+         
+        print("selesai")
+        
     """if 0: #kode untuk visit freq
         df_combined = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasiscraasicombined.xlsx", index_col=0)
         patient_visit_frequency(df_combined,
