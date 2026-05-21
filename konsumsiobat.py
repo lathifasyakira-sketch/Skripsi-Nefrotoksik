@@ -1,5 +1,8 @@
 import pandas as pd
+import ast
+import glob
 import os
+
 
 def normalize_mr(x):
     if pd.isna(x):
@@ -14,7 +17,6 @@ def normalize_mr(x):
     x = x.lstrip("0")
 
     return x if x != "" else "0"
-
 
 def extract_and_merge_mr(
     file_master,
@@ -110,8 +112,6 @@ def extract_unique_items(
     print(f"Disimpan di: {output_path}")
 
     return df_unique
-
-import pandas as pd
 
 def hitung_nefrotoksik(
     df_konsumsi,
@@ -279,6 +279,188 @@ def hitung_nefrotoksik_akumulasi_unique(
 
     return result
 
+def hitung_max_item_per_hari_folder(
+    folder_sc,
+    file_rm_diuretik,
+    file_obatlain,
+    output_file=None,
+    col_rm="Medical Record No.",
+    col_sc_mr="MR No. / Vendor Code",
+    col_item="Item Name",
+    col_date="Created Date",
+    col_key="Key",
+    col_fullnames="Full Names"
+):
+
+    df_rm = pd.read_excel(file_rm_diuretik)
+    df_obat = pd.read_excel(file_obatlain)
+
+    def normalize_mr(x):
+        try:
+            return str(int(float(x)))
+        except:
+            return None
+
+    df_rm["MR_NORMALIZED"] = (
+        df_rm[col_rm]
+        .apply(normalize_mr)
+    )
+
+    mr_list = set(
+        df_rm["MR_NORMALIZED"]
+        .dropna()
+    )
+
+    all_files = glob.glob(
+        os.path.join(folder_sc, "*.xlsx")
+    )
+
+    list_df = []
+
+    for file in all_files:
+
+        try:
+            df_temp = pd.read_excel(file)
+
+            df_temp["MR_NORMALIZED"] = (
+                df_temp[col_sc_mr]
+                .apply(normalize_mr)
+            )
+
+            # filter MR
+            df_temp = df_temp[
+                df_temp["MR_NORMALIZED"]
+                .isin(mr_list)
+            ]
+
+            list_df.append(df_temp)
+
+            print(f"Loaded: {file}")
+
+        except Exception as e:
+            print(f"Gagal load {file}: {e}")
+
+    df_sc = pd.concat(
+        list_df,
+        ignore_index=True
+    )
+
+    df_sc[col_item] = (
+        df_sc[col_item]
+        .astype(str)
+        .str.upper()
+        .str.strip()
+    )
+
+    df_sc[col_date] = pd.to_datetime(
+        df_sc[col_date],
+        errors='coerce'
+    )
+
+    df_sc["DATE_ONLY"] = (
+        df_sc[col_date]
+        .dt.date
+    )
+
+    mapping = {}
+
+    for _, row in df_obat.iterrows():
+
+        key = str(row[col_key]).replace('"', '').strip()
+
+        try:
+            fullnames = ast.literal_eval(
+                row[col_fullnames]
+            )
+
+            if isinstance(fullnames, (list, tuple)):
+
+                for name in fullnames:
+
+                    clean_name = (
+                        str(name)
+                        .upper()
+                        .strip()
+                    )
+
+                    mapping[clean_name] = key
+
+        except:
+            continue
+
+    df_sc["Mapped_Key"] = (
+        df_sc[col_item]
+        .map(mapping)
+    )
+
+    # buang yg tidak termapping
+    df_sc = df_sc.dropna(
+        subset=["Mapped_Key"]
+    )
+
+    # UNIQUE KEY PER HARI
+    daily_count = (
+        df_sc
+        .drop_duplicates(
+            subset=[
+                "MR_NORMALIZED",
+                "DATE_ONLY",
+                "Mapped_Key"
+            ]
+        )
+        .groupby(
+            ["MR_NORMALIZED", "DATE_ONLY"]
+        )
+        .agg(
+            jumlah_item=("Mapped_Key", "nunique"),
+
+            list_obat=(
+                "Mapped_Key",
+                lambda x: sorted(set(x))
+            ),
+
+            list_item_asli=(
+                col_item,
+                lambda x: sorted(set(x))
+            )
+        )
+        .reset_index()
+    )
+
+    daily_count["list_obat"] = (
+        daily_count["list_obat"]
+        .apply(lambda x: ", ".join(map(str, x)))
+    )
+
+    daily_count["list_item_asli"] = (
+        daily_count["list_item_asli"]
+        .apply(lambda x: ", ".join(map(str, x)))
+    )
+
+    idx_max = (
+        daily_count
+        .groupby("MR_NORMALIZED")["jumlah_item"]
+        .idxmax()
+    )
+
+    result = (
+        daily_count
+        .loc[idx_max]
+        .reset_index(drop=True)
+    )
+
+    result = result.rename(columns={
+        "MR_NORMALIZED": "MR",
+        "jumlah_item": "max_jumlah_item_per_hari"
+    })
+
+    # SAVE
+    if output_file:
+        result.to_excel(output_file, index=False)
+
+    return result
+
+
 if __name__ == "__main__":
     if 0: #Menggabungkan SC berdasarkan MR diagnosis
         df_hasil = extract_and_merge_mr(
@@ -290,7 +472,7 @@ if __name__ == "__main__":
 
         print ("bismillah")
 
-    if 1: #Menghilangkan BMHP dan menyatukan obat
+    if 0: #Menghilangkan BMHP dan menyatukan obat
         df_items = extract_unique_items(
         input_path=r"/Users/lathifasyakira/Desktop/SKRIPSI/konsumsiobatpasiendiuretik.xlsx",
         output_path=r"/Users/lathifasyakira/Desktop/SKRIPSI/konsumsiobatpasiendiuretik_filtered.xlsx"
@@ -312,4 +494,14 @@ if __name__ == "__main__":
         
         df_result_sum = hitung_nefrotoksik_akumulasi_unique(df_konsumsi, df_nefro)
         
+        print(df_result_sum.head())
+
+    if 1: # Penggunaan Obat Lain (Polifarmasi)
+        df_final = hitung_max_item_per_hari_folder(
+        folder_sc="StockCard",
+        file_rm_diuretik="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMdiuretik.xlsx",
+        file_obatlain="Obatlain.xlsx",
+        output_file="Polifarmasi.xlsx"
+        )
+
         print(df_result_sum.head())
