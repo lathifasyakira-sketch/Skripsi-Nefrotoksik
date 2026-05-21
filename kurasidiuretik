@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ast, math
 
+
 def filter_excel_by_keyword(
     excel_files_pattern,
     list_sortir,
@@ -316,9 +317,6 @@ def filter_patient_3_months_with_coverage(
     date_col="Created Date"
 ):
     #delta days diuretik yang bener
-
-    import pandas as pd
-
     df = pd.read_excel(input_file)
 
     # PREPROCESS DATE
@@ -532,7 +530,6 @@ def diuretik_egfr_combined(
         "both": both
     }
 
-
 def visit_interval_after_merge_try(
     df_both,
     patient_col="Medical Record No.",
@@ -589,7 +586,6 @@ def visit_interval_after_merge_try(
         plt.show()
 
     return freq, df    
-
 
 def visit_interval_after_merge_old(
     df_both,
