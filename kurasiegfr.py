@@ -2,6 +2,7 @@ import glob, os, re
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
 def filter_excel_by_keyword(
     excel_files_pattern,
     filter_keyword,
@@ -201,6 +202,7 @@ def patient_visit_frequency(
 
     return intervals_df, freq_days, freq_weeks
 
+
 if __name__ == "__main__":
     if 0: # Kode untuk Memfilter
         filter_excel_by_keyword(
@@ -226,3 +228,5 @@ if __name__ == "__main__":
         df_combined_interval.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasiegfrcombinedinterval.xlsx")
         
         df_combined.info()
+
+        print ("selesai egfr")
