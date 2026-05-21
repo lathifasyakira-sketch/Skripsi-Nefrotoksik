@@ -3,6 +3,32 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 import joblib
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import (
+    train_test_split,
+    GridSearchCV,
+    KFold
+)
+from sklearn.metrics import (
+    r2_score,
+    mean_absolute_error,
+    mean_squared_error
+)
+from scipy.stats import spearmanr
+from sklearn.metrics import (accuracy_score, 
+                             precision_score, 
+                             recall_score, 
+                             f1_score, 
+                             roc_auc_score, 
+                             confusion_matrix)
+
+from sklearn.ensemble import (RandomForestClassifier)
+from sklearn.metrics import (
+    confusion_matrix,
+    ConfusionMatrixDisplay
+)
+import matplotlib.colors as mcolors
+
 
 def build_egfr_delta(
     file_path,
@@ -50,7 +76,6 @@ def build_egfr_delta(
         result.to_excel(output_file, index=False)
 
     return result
-
 
 def build_master_dataset(
     file_pasien="RMDiuretik.xlsx",
@@ -200,24 +225,6 @@ def build_master_dataset(
         master.to_excel(output_file, index=False)
 
     return master
-
-
-from sklearn.model_selection import (
-    train_test_split,
-    GridSearchCV,
-    KFold
-)
-
-from sklearn.ensemble import RandomForestRegressor
-
-from sklearn.metrics import (
-    r2_score,
-    mean_absolute_error,
-    mean_squared_error
-)
-
-from scipy.stats import spearmanr
-
 
 def run_ml_experiment(
     file_path,
@@ -423,7 +430,6 @@ def run_ml_experiment(
         )
 
     print("\n=== SELESAI ===")
-
 
 def run_ml_experiment_normalized(
     file_path,
@@ -639,16 +645,6 @@ def run_ml_experiment_normalized(
         )
 
     print("\n=== SELESAI ===")
-
-
-from sklearn.metrics import (accuracy_score, 
-                             precision_score, 
-                             recall_score, 
-                             f1_score, 
-                             roc_auc_score, 
-                             confusion_matrix)
-
-from sklearn.ensemble import (RandomForestClassifier)
 
 def run_rf_classification(
     file_path,
@@ -885,11 +881,6 @@ def run_rf_classification(
 
     print("\n=== SELESAI RF CLASSIFICATION ===")
 
-from sklearn.metrics import (
-    confusion_matrix,
-    ConfusionMatrixDisplay
-)
-
 def plot_confusion_matrix_excel(
     excel_path,
     output_png="confusion_matrix.png",
@@ -918,8 +909,6 @@ def plot_confusion_matrix_excel(
     ])
 
     # CONVERT COLOR TO RGB
-    import matplotlib.colors as mcolors
-
     rgb_matrix = np.empty((2,2,4))
 
     for i in range(2):
@@ -1041,6 +1030,7 @@ def extract_rf_feature_importance(
 
     return importance_df
 
+
 if __name__ == "__main__":  
     if 0: # eGFRR delta
         df_delta = build_egfr_delta(
@@ -1097,7 +1087,7 @@ if __name__ == "__main__":
         print("selesai CM") 
 
     if 0: # Feature Importance
-        file_path= "/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_akum_diuretik.xlsx"
+        file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_akum_diuretik.xlsx"
         output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx"
         batas_atas=-9,
         batas_bawah=-10
