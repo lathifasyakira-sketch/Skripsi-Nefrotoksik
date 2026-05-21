@@ -2,12 +2,13 @@ import glob, os, re
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
 def filter_excel_by_keyword(
     excel_files_pattern,
     filter_keyword,
     column_name="Test Name",
     output_prefix="LT",
-    output_suffix="Kreatin"
+    output_suffix="Kreatinin"
 ):
     """
     Membaca file Excel berdasarkan pola, memfilter baris berdasarkan keyword,
@@ -201,6 +202,7 @@ def patient_visit_frequency(
 
     return intervals_df, freq_days, freq_weeks
 
+
 if __name__ == "__main__":
     if 0: # Kode untuk Memfilter
         filter_excel_by_keyword(
@@ -214,7 +216,7 @@ if __name__ == "__main__":
         print("selesai")
 
     if 1: # Kode untuk menggabungkan
-        excel_file_template = "LT {Bulan} Kreatinin.xlsx"
+        excel_file_template = "LT {Bulan} kreatinin.xlsx"
         glob_pattern = f"/Users/lathifasyakira/Desktop/SKRIPSI/kurasikreatinin/{excel_file_template.replace('{Bulan}', '*')}"
         df_combined = load_and_combine_excel_data(glob_pattern)
         df_combined.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasikreatinincombined.xlsx")
@@ -229,3 +231,5 @@ if __name__ == "__main__":
         df_combined_interval.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasikreatinincombinedinterval.xlsx")
         
         df_combined.info()
+
+        print ("selesai kreatinin")
