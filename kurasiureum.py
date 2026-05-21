@@ -2,6 +2,7 @@ import glob, os, re
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
 def filter_excel_by_keyword(
     excel_files_pattern,
     filter_keyword,
@@ -24,7 +25,7 @@ def filter_excel_by_keyword(
     output_prefix : str
         Awalan nama file output (default: "LT").
     output_suffix : str
-        Akhiran nama file output (default: "egfr").
+        Akhiran nama file output (default: "Ureum").
 
     Returns
     -------
@@ -130,6 +131,8 @@ def patient_visit_frequency(
 
     intervals_days = []
     intervals_weeks = []
+    billing_no = []
+    med_rec = []
 
     # Mengitung interval antar kunjungan per pasien
     for _, group in df.groupby(patient_col):
@@ -137,26 +140,33 @@ def patient_visit_frequency(
 
         if len(dates) < 2:
             continue
-
+        
         deltas = dates.diff().dropna()
-        intervals_days.append(deltas.dt.days.max())
-        intervals_weeks.append(deltas.dt.days.max() / 7)
+        intervals_week = (deltas.dt.days.max() / 7)
+
+        if intervals_week > 12:
+            intervals_days.append(deltas.dt.days.max())
+            intervals_weeks.append(deltas.dt.days.max() / 7)
+            billing_no.append(list(group["Billing No."]))
+            med_rec.append(group["Medical Record No."].values[0])
+
 
     intervals_df = pd.DataFrame({
         "interval_days": intervals_days,
-        "interval_weeks": intervals_weeks
+        "interval_weeks": intervals_weeks,
+        "billing": billing_no,
+        "Medical Record No.": med_rec
+
     })
+
+    intervals_df = intervals_df[intervals_df["interval_days"] >= 90]
 
     # Distribusi hari
     freq_days = intervals_df["interval_days"].value_counts().sort_index()
 
     # Bin mingguan 
-    bins = [1, 2, 4, 8, 12, 24, 52, 1000]
+    bins = [12, 24, 52, 1000]
     labels = [
-        "1–2 minggu",
-        "2–4 minggu",
-        "1–2 bulan",
-        "2–3 bulan",
         "3–6 bulan",
         "6–12 bulan",
         ">12 bulan"
@@ -192,6 +202,7 @@ def patient_visit_frequency(
 
     return intervals_df, freq_days, freq_weeks
 
+
 if __name__ == "__main__":
     if 0: # Kode untuk Memfilter
         filter_excel_by_keyword(
@@ -207,8 +218,15 @@ if __name__ == "__main__":
         df_combined = load_and_combine_excel_data(glob_pattern)
         df_combined.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasiureumcombined.xlsx")
 
-        patient_visit_frequency(df_combined)
+        intervals_df, freq_days, freq_weeks= patient_visit_frequency(df_combined)
 
 
         print(df_combined.head())
+        intervals_df.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasiureuminterval.xlsx")
+        list_mr_intervals = intervals_df["Medical Record No."].tolist()
+        df_combined_interval = df_combined[df_combined["Medical Record No."].isin(list_mr_intervals)]
+        df_combined_interval.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasiureumcombinedinterval.xlsx")
+        
         df_combined.info()
+
+        print ("selesai ureum")
