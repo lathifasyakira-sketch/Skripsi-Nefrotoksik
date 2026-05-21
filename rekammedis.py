@@ -1,5 +1,7 @@
 import pandas as pd
 import re
+import ast
+
 
 def build_pattern(text):
     if pd.isna(text):
@@ -229,6 +231,125 @@ def add_usia_from_dob(
 
     return df
 
+def hitung_cci_akumulasi(
+    df_rm,
+    df_cci,
+    col_mr='Medical Record No.',
+    diag_cols=['Diagnosa', 'Diagnosa.1'],
+    col_dict='Dict',
+    col_cci='CCI',
+    col_score='Poin uCCI'
+):
+
+    df = df_rm.copy()
+
+    def clean_text(x):
+
+        if pd.isna(x):
+            return ""
+
+        x = str(x)
+
+        x = x.lower()
+
+        # enter/newline/tab
+        x = re.sub(r'[\n\r\t]+', ' ', x)
+
+        x = re.sub(r'\s+', ' ', x)
+
+        return x.strip()
+
+    diag_exist = [
+        c for c in diag_cols
+        if c in df.columns
+    ]
+
+    for col in diag_exist:
+        df[col] = df[col].apply(clean_text)
+
+    df["ALL_DIAGNOSIS"] = (
+        df[diag_exist]
+        .fillna("")
+        .agg(" ".join, axis=1)
+    )
+
+    cci_rules = []
+
+    for _, row in df_cci.iterrows():
+
+        kategori = str(row[col_dict]).strip()
+        score = row[col_score]
+
+        raw_cci = str(row[col_cci])
+
+        try:
+            keyword_list = ast.literal_eval(
+                "[" + raw_cci + "]"
+            )
+
+        except:
+            continue
+
+        keyword_list = [
+            clean_text(x)
+            for x in keyword_list
+        ]
+
+        keyword_list = [
+            x for x in keyword_list
+            if x
+        ]
+
+        cci_rules.append({
+            "kategori": kategori,
+            "score": score,
+            "keywords": keyword_list
+        })
+
+    hasil = []
+
+    for mr, group in df.groupby(col_mr):
+
+        semua_text = " ".join(
+            group["ALL_DIAGNOSIS"]
+            .dropna()
+            .tolist()
+        )
+
+        semua_text = clean_text(semua_text)
+
+        total_score = 0
+        matched_kategori = []
+
+        for rule in cci_rules:
+
+            found = False
+
+            for keyword in rule["keywords"]:
+
+                if keyword in semua_text:
+                    found = True
+                    break
+
+            if found:
+
+                total_score += rule["score"]
+
+                matched_kategori.append(
+                    rule["kategori"]
+                )
+
+        hasil.append({
+            col_mr: mr,
+            "CCI_uScore": total_score,
+            "CCI_Kategori": ", ".join(matched_kategori)
+        })
+
+    result = pd.DataFrame(hasil)
+
+    return result
+
+
 if __name__ == "__main__":
     if 0: 
         df_rm = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMdiuretik.xlsx")
@@ -253,12 +374,20 @@ if __name__ == "__main__":
 
         print ("selesai")  
 
-    if 1: #Tambah kolom usia
+    if 0: # Tambah kolom usia
         df = add_usia_from_dob(
             file_merge="/Users/lathifasyakira/Desktop/SKRIPSI/merge_s05e06d07.xlsx",
             file_ref="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
             output_file="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/merge_with_usia.xlsx"             
             )
         
-        print ("selesai")         
-                    
+        print ("selesai")     
+
+    if 1: # CCI
+        df_pasien = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMDiuretik.xlsx")
+        df_cci = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/CCI.xlsx")
+        df_result_sum = hitung_cci_akumulasi(df_pasien, df_cci)
+        df_result_sum.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/CCIAkumulasi.xlsx", index=False)
+        
+        print(df_result_sum.head())
+                         
