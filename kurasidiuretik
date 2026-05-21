@@ -740,6 +740,7 @@ if __name__ == "__main__":
         df_diuretikfinal=clean_patient_names(df_combined)
         df_diuretikfinal=df_diuretikfinal.dropna(subset=['MR No. / Vendor Code'])
         df_diuretikfinal.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/diuretikfinal.xlsx")
+        
         print("selesai")
     
     if 0: # Kode untuk filter pasien minimal durasi pengobatan 3 bulan
