@@ -532,7 +532,6 @@ def raasi_egfr_combined(
         "both": both
     }
 
-
 def visit_interval_after_merge_try(
     df_both,
     patient_col="Medical Record No.",
@@ -590,7 +589,6 @@ def visit_interval_after_merge_try(
 
     return freq, df
 
-    
 def visit_interval_after_merge_old(
     df_both,
     patient_col="Medical Record No.",
@@ -742,9 +740,9 @@ if __name__ == "__main__":
         glob_pattern = f"/Users/lathifasyakira/Desktop/SKRIPSI/kurasiraasi/{excel_file_template.replace('{Bulan}', '*')}"
         df_combined = load_and_combine_excel_data(glob_pattern)
         df_combined.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasiscraasicombined.xlsx")
-         
+
         print("selesai")
-        
+
     """if 0: #kode untuk visit freq
         df_combined = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasiscraasicombined.xlsx", index_col=0)
         patient_visit_frequency(df_combined,
@@ -761,13 +759,13 @@ if __name__ == "__main__":
         df_raasifinal.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/raasifinal.xlsx")
         print("selesai")
 
-    if 0: # Kode untuk filter pasien minimal durasi pengobatan 3 bulan
+    if 1: # Kode untuk filter pasien minimal durasi pengobatan 3 bulan
         #filter_patient_3_months(input_file="/Users/lathifasyakira/Desktop/SKRIPSI/raasifinal.xlsx", output_file="/Users/lathifasyakira/Desktop/SKRIPSI/raasifinal3buland.xlsx")
         filter_patient_3_months_with_coverage(input_file=r"/Users/lathifasyakira/Desktop/SKRIPSI/raasifinal.xlsx", output_file=r"/Users/lathifasyakira/Desktop/SKRIPSI/raasifinal3bulan.xlsx")
 
         print("selesai")
 
-    if 1: # Analisis gabungan RAASI & eGFR
+    if 0: # Analisis gabungan RAASI & eGFR
         df_raasi = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/raasifinal3bulan.xlsx")
         df_egfr = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/kurasiegfrcombinedinterval.xlsx")
 
