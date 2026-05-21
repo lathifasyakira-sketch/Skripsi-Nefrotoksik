@@ -316,9 +316,6 @@ def filter_patient_3_months_with_coverage(
     date_col="Created Date"
 ):
     #delta days raasi yang bener
-
-    import pandas as pd
-
     df = pd.read_excel(input_file)
 
     # PREPROCESS DATE
@@ -757,6 +754,7 @@ if __name__ == "__main__":
         df_raasifinal=clean_patient_names(df_combined)
         df_raasifinal=df_raasifinal.dropna(subset=['MR No. / Vendor Code'])
         df_raasifinal.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/raasifinal.xlsx")
+        
         print("selesai")
 
     if 1: # Kode untuk filter pasien minimal durasi pengobatan 3 bulan
