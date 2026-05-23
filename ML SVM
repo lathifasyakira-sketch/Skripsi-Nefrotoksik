@@ -3,27 +3,12 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 import joblib
-from sklearn.svm import SVC
-from sklearn.metrics import (
-    r2_score,
-    mean_absolute_error,
-    mean_squared_error
-)
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
-    confusion_matrix
-)
-from sklearn.model_selection import (
-    train_test_split,
-    GridSearchCV,
-    KFold
-)
+from sklearn.model_selection import (train_test_split, GridSearchCV, KFold)
 from sklearn.svm import SVR
+from sklearn.metrics import (r2_score, mean_absolute_error, mean_squared_error)
 from scipy.stats import spearmanr
+from sklearn.svm import SVC
+from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix)
 
 
 def run_svm_regression_normalized(
