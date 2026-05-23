@@ -3,10 +3,12 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 import joblib
-from xgboost import XGBRegressor
 from sklearn.model_selection import (train_test_split, GridSearchCV, KFold)
+from xgboost import XGBRegressor
 from sklearn.metrics import (r2_score, mean_absolute_error, mean_squared_error)
 from scipy.stats import spearmanr
+from xgboost import XGBClassifier
+from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix)
 
 
 def run_xgboost_experiment(
@@ -206,18 +208,6 @@ def run_xgboost_experiment(
         )
 
     print("\n=== SELESAI XGBOOST ===")
-
-from xgboost import XGBClassifier
-
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
-    confusion_matrix
-)
-
 
 def run_xgboost_classification(
     file_path,
@@ -507,8 +497,9 @@ def run_xgboost_classification(
 
     print("\n=== SELESAI XGBOOST CLASSIFICATION ===")
 
+
 if __name__ == "__main__": 
-    if 1: # XG BOOST REGRESI
+    if 0: # XG BOOST REGRESI
         run_xgboost_experiment(
             file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_onehot_maks_diuretik.xlsx",
             output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILXGB/hasil_xgboost.xlsx"
