@@ -436,6 +436,259 @@ def build_master_dataset_cci_com(
 
     return master
 
+def build_master_dataset_cci_com_hiperpol(
+    file_pasien="RMDiuretik.xlsx",
+    file_diuretik="diuretikfinal3bulan.xlsx",
+    file_usia="merge_with_usia.xlsx",
+    file_nefro="nefrotoksikakumulasi.xlsx",
+    file_egfr="egfr_delta.xlsx",
+    file_cci="cci.xlsx",
+    file_diag="diagnosis_feature.xlsx",
+    file_polifarmasi="polifarmasi.xlsx",
+    output_file=None
+):
+    df_base = pd.read_excel(file_pasien)
+
+    df_base["MRN"] = df_base["Medical Record No."].astype(str)
+
+    patient_list = df_base["MRN"].unique()
+
+    master = pd.DataFrame({
+        "MRN": patient_list
+    })
+
+
+    df_diur = pd.read_excel(file_diuretik)
+
+    df_diur = df_diur.rename(columns={
+        "MR No. / Vendor Code": "MRN"
+    })
+
+    df_diur["MRN"] = df_diur["MRN"].astype(str)
+
+    df_diur = df_diur[
+        df_diur["MRN"].isin(patient_list)
+    ]
+
+    # ONE HOT
+    subgol_dummies = pd.get_dummies(
+        df_diur["Sub_Golongan"],
+        prefix="diur"
+    )
+
+    df_diur = pd.concat([
+        df_diur[["MRN"]],
+        subgol_dummies
+    ], axis=1)
+
+    df_diur = df_diur.groupby("MRN").max().reset_index()
+
+
+    df_kelamin = pd.read_excel(file_diuretik)
+
+    df_kelamin = df_kelamin.rename(columns={
+        "MR No. / Vendor Code": "MRN"
+    })
+
+    df_kelamin["MRN"] = df_kelamin["MRN"].astype(str)
+
+    df_kelamin = df_kelamin[
+        df_kelamin["MRN"].isin(patient_list)
+    ]
+
+    df_kelamin = df_kelamin.groupby("MRN")["Kelamin"].agg(
+        lambda x: x.dropna().iloc[0]
+        if len(x.dropna()) > 0
+        else "N/A"
+    ).reset_index()
+
+    df_kelamin["kelamin_P"] = (
+        df_kelamin["Kelamin"] == "Perempuan"
+    ).astype(int)
+
+    df_kelamin["kelamin_L"] = (
+        df_kelamin["Kelamin"] == "Pria"
+    ).astype(int)
+
+    df_kelamin["kelamin_NA"] = (
+        df_kelamin["Kelamin"] == "N/A"
+    ).astype(int)
+
+    df_kelamin = df_kelamin.drop(columns=["Kelamin"])
+
+    df_usia = pd.read_excel(file_usia)
+
+    df_usia["MRN"] = df_usia["MRN"].astype(str)
+
+    df_usia = df_usia[
+        df_usia["MRN"].isin(patient_list)
+    ]
+
+    drop_cols = [
+        "billing_awal",
+        "billing_akhir"
+    ]
+
+    df_usia = df_usia.drop(
+        columns=[c for c in drop_cols if c in df_usia.columns]
+    )
+
+    df_usia = df_usia.drop_duplicates(subset="MRN")
+
+    df_nefro = pd.read_excel(file_nefro)
+
+    df_nefro = df_nefro.rename(columns={
+        "MR No. / Vendor Code": "MRN"
+    })
+
+    df_nefro["MRN"] = df_nefro["MRN"].astype(str)
+
+    df_nefro = df_nefro[
+        df_nefro["MRN"].isin(patient_list)
+    ]
+
+    df_nefro = df_nefro[
+        ["MRN", "nefrotoksik_akumulasi"]
+    ].drop_duplicates(subset="MRN")
+
+    df_egfr = pd.read_excel(file_egfr)
+
+    df_egfr["MRN"] = df_egfr[
+        "Medical Record No."
+    ].astype(str)
+
+    df_egfr = df_egfr[
+        df_egfr["MRN"].isin(patient_list)
+    ]
+
+    df_egfr = df_egfr[
+        ["MRN", "delta", "days"]
+    ].drop_duplicates(subset="MRN")
+
+    df_cci = pd.read_excel(file_cci)
+
+    possible_mrn_cols = [
+        "Medical Record No.",
+        "MRN",
+        "MR No. / Vendor Code"
+    ]
+
+    cci_mrn_col = next(
+        c for c in possible_mrn_cols
+        if c in df_cci.columns
+    )
+
+    df_cci["MRN"] = df_cci[cci_mrn_col].astype(str)
+
+    df_cci = df_cci[
+        df_cci["MRN"].isin(patient_list)
+    ]
+
+    df_cci = df_cci[
+        ["MRN", "CCI_uScore"]
+    ].drop_duplicates(subset="MRN")
+
+
+    df_diag = pd.read_excel(file_diag)
+
+    diag_mrn_col = next(
+        c for c in possible_mrn_cols
+        if c in df_diag.columns
+    )
+
+    df_diag["MRN"] = df_diag[diag_mrn_col].astype(str)
+
+    df_diag = df_diag[
+        df_diag["MRN"].isin(patient_list)
+    ]
+
+    drop_diag_cols = [
+        "MRN",
+        "Medical Record No.",
+        "billing_awal",
+        "billing_akhir"
+    ]
+
+    diag_feature_cols = [
+        c for c in df_diag.columns
+        if c not in drop_diag_cols
+    ]
+
+    df_diag = df_diag[
+        ["MRN"] + diag_feature_cols
+    ]
+
+    df_diag = df_diag.drop_duplicates(subset="MRN")
+    df_poly = pd.read_excel(file_polifarmasi)
+
+    df_poly["MRN"] = df_poly["MR"].astype(str)
+
+    df_poly = df_poly[
+        df_poly["MRN"].isin(patient_list)
+    ]
+
+    df_poly = df_poly[
+        ["MRN", "max_jumlah_item_per_hari"]
+    ].drop_duplicates(subset="MRN")
+
+    # <10 = 0, >=10 = 1
+    df_poly["polifarmasi"] = (
+        df_poly["max_jumlah_item_per_hari"] >= 10
+    ).astype(int)
+
+    df_poly = df_poly[
+        ["MRN", "polifarmasi"]
+    ]
+
+
+    master = master.merge(df_diur, on="MRN", how="left")
+
+    master = master.merge(df_kelamin, on="MRN", how="left")
+
+    master = master.merge(df_usia, on="MRN", how="left")
+
+    master = master.merge(df_nefro, on="MRN", how="left")
+
+    master = master.merge(df_egfr, on="MRN", how="left")
+
+    master = master.merge(df_cci, on="MRN", how="left")
+
+    master = master.merge(df_diag, on="MRN", how="left")
+
+    master = master.merge(df_poly, on="MRN", how="left")
+
+    onehot_cols = [
+        c for c in master.columns
+        if c.startswith("diur_")
+    ]
+
+    master[onehot_cols] = master[onehot_cols].fillna(0)
+
+    diag_cols = [
+        c for c in diag_feature_cols
+        if c in master.columns
+    ]
+
+    master[diag_cols] = master[diag_cols].fillna(0)
+
+    if "CCI_uScore" in master.columns:
+        master["CCI_uScore"] = master["CCI_uScore"].fillna(0)
+
+    if "nefrotoksik_akumulasi" in master.columns:
+        master["nefrotoksik_akumulasi"] = (
+            master["nefrotoksik_akumulasi"].fillna(0)
+        )
+
+    if "polifarmasi" in master.columns:
+        master["polifarmasi"] = (
+            master["polifarmasi"].fillna(0).astype(int)
+        )
+
+    if output_file:
+        master.to_excel(output_file, index=False)
+
+    return master
+
 def run_ml_experiment(
     file_path,
     output_excel
@@ -1038,10 +1291,7 @@ def run_rf_classification(
         })
 
     # SAVE MODEL
-    joblib.dump(
-        model,
-        output_excel.replace(".xlsx", ".pkl")
-    )
+    joblib.dump(model,"Precision_classweight_numweight_akum_diur.pkl")
 
     # SUMMARY
     results_df = pd.DataFrame(results)
@@ -1240,79 +1490,93 @@ def extract_rf_feature_importance(
 
     return importance_df
 
-
 if __name__ == "__main__":  
     if 0: # eGFRR delta
         df_delta = build_egfr_delta(
-        "/Users/lathifasyakira/Desktop/SKRIPSI/kurasiegfrcombinedinterval.xlsx",
-        output_file="/Users/lathifasyakira/Desktop/SKRIPSI/egfr_delta.xlsx"
+        "C:/Users/rashi/SKRIPSI/kurasiegfrcombinedinterval.xlsx",
+        output_file="C:/Users/rashi/SKRIPSI/egfr_delta.xlsx"
         )
 
         print("selesai")
 
     if 0: # Build Master Dataset (Menggabungkan Data untuk ML)
         df_master = build_master_dataset(
-            file_pasien="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMDiuretik.xlsx",
-            file_diuretik="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
-            file_usia="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/merge_with_usia.xlsx",
-            file_nefro="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/NefrotoksikMaksimalisasi.xlsx",
-            file_egfr="/Users/lathifasyakira/Downloads/egfr_delta_sekar.xlsx",
-            output_file="master_weight_maks_diuretik.xlsx"
+            file_pasien="C:/Users/rashi/SKRIPSI/variabelX/RMDiuretikFIX.xlsx",
+            file_diuretik="C:/Users/rashi/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
+            file_usia="C:/Users/rashi/SKRIPSI/variabelX/merge_with_usia.xlsx",
+            file_nefro="C:/Users/rashi/SKRIPSI/variabelX/NefrotoksikMaksimalisasi.xlsx",
+            file_egfr="C:/Users/rashi/Downloads/egfr_delta.xlsx",
+            output_file="master_weight_maks_diuretik_old.xlsx"
             )
         
         print("selesai")
 
-    if 0: # Build Master Dataset (NEW)
-        df_master = build_master_dataset_cci_com(
-            file_pasien="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMDiuretik.xlsx",
-            file_diuretik="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
-            file_usia="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/merge_with_usia.xlsx",
-            file_nefro="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/NefrotoksikAkumulasi.xlsx",
-            file_egfr="/Users/lathifasyakira/Downloads/egfr_delta_sekar.xlsx",
-            file_cci="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/CCIAkumulasi.xlsx",
-            file_diag="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/StatusKomorbid.xlsx",
-            output_file="master_weight_ccinefroakum_diuretik.xlsx"
-            )
-        
-        print("selesai")
+    if 0: # Build Master Dataset (add CCI, Komorbid, dan Gangguan Elektrolit)
+            df_master = build_master_dataset_cci_com(
+                file_pasien="C:/Users/rashi/SKRIPSI/variabelX/RMDiuretikFIX.xlsx",
+                file_diuretik="C:/Users/rashi/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
+                file_usia="C:/Users/rashi/SKRIPSI/variabelX/merge_with_usia.xlsx",
+                file_nefro="C:/Users/rashi/SKRIPSI/variabelX/NefrotoksikAkumulasi.xlsx",
+                file_egfr="C:/Users/rashi/Downloads/egfr_delta.xlsx",
+                file_cci="C:/Users/rashi/SKRIPSI/variabelX/CCIAkumulasi.xlsx",
+                file_diag="C:/Users/rashi/SKRIPSI/variabelX/Komorbid_GGElektro.xlsx",
+                output_file="master_weight_akum_diuretik.xlsx"
+                )
+            
+            print("selesai")
+
+    if 0: # Build Master Dataset (add Polifarmasi)
+            df_master = build_master_dataset_cci_com_hiperpol(
+                file_pasien="C:/Users/rashi/SKRIPSI/variabelX/RMDiuretikFIX.xlsx",
+                file_diuretik="C:/Users/rashi/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
+                file_usia="C:/Users/rashi/SKRIPSI/variabelX/merge_with_usia.xlsx",
+                file_nefro="C:/Users/rashi/SKRIPSI/variabelX/NefrotoksikAkumulasi.xlsx",
+                file_egfr="C:/Users/rashi/SKRIPSI/variabelX/egfr_delta.xlsx",
+                file_cci="C:/Users/rashi/SKRIPSI/variabelX/CCIAkumulasi.xlsx",
+                file_diag="C:/Users/rashi/SKRIPSI/variabelX/StatusKomorbid_GGElektro.xlsx",
+                file_polifarmasi="C:/Users/rashi/SKRIPSI/variabelX/Polifarmasi.xlsx",
+                output_file="master_weight_akum_diuretik.xlsx"
+                )
+            
+            print("selesai")
 
     if 0: # ML RF REGRESI ORIGINAL DELTA   
         run_ml_experiment(
-            file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_maks_diuretik.xlsx",
-            output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Regresi/hasil_weight_maks_diur.xlsx"
+            file_path="C:/Users/rashi/SKRIPSI/master_weight_maks_diuretik.xlsx",
+            output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Regresi/hasil_weight_maks_diur.xlsx"
             )
         
         print("selesai original")
 
     if 0: # ML RF REGRESI NORMALIZED DELTA (y adalah y dibagi delta days, tidak dijadikan x lagi delta daysnya)
         run_ml_experiment_normalized(
-            file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_maks_diuretik.xlsx",
-            output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Regresi/hasil_weight_maks_diur_normalized.xlsx"
+            file_path="C:/Users/rashi/SKRIPSI/master_weight_maks_diuretik.xlsx",
+            output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Regresi/hasil_weight_maks_diur_normalized.xlsx"
             )
 
         print("selesai normalized")
 
     if 1: # ML RF KLASIFIKASI
         run_rf_classification(
-            file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_ccinefroakum_diuretik.xlsx",
-            output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_ccinefroakum_diur.xlsx",
+            file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
+            output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx",
             batas_atas=-9,
-            batas_bawah=-10
+            batas_bawah=-15
             )
         
-        print("selesai rf classification") 
+        print("selesai rf classification")
 
     if 0: # Confussion Matrix
         plot_confusion_matrix_excel(
-            excel_path="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur_prediction_run1.xlsx",
+            excel_path="C:/Users/rashi/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur_prediction_run1.xlsx",
             output_png="cm_run1.png"
             )
         
         print("selesai CM") 
 
     if 0: # Feature Importance
-        file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_akum_diuretik.xlsx"
-        output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx"
+        file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx"
+        output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx"
         batas_atas=-9,
         batas_bawah=-10
 
