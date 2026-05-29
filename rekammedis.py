@@ -442,9 +442,9 @@ if __name__ == "__main__":
 
         print ("selesai")  
 
-    if 1: # Status Komorbid
+    if 1: # Status Komorbid dan Gangguan Elektro
         df_rm = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMdiuretik.xlsx")
-        df_dict = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/Komorbid.xlsx")
+        df_dict = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/Komorbid_GGElektro.xlsx")
 
 
         cols = ['Diagnosa', 'Diagnosa.1']
@@ -454,11 +454,11 @@ if __name__ == "__main__":
     
         df_kom = create_diagnosis_features_simple(df_rm, df_dict)
 
-        df_kom.to_excel('StatusKomorbid.xlsx', index=False)   
+        df_kom.to_excel('StatusKomorbid_GGelektro.xlsx', index=False)   
 
         print ("selesai")       
 
-    if 0: # Tambah kolom usia
+    if 0: # Tambah kolom usia (merge and separate)
         df = add_usia_from_dob(
             file_merge="/Users/lathifasyakira/Desktop/SKRIPSI/merge_s05e06d07.xlsx",
             file_ref="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
