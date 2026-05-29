@@ -496,12 +496,12 @@ if __name__ == "__main__":
         
         print(df_result_sum.head())
 
-    if 1: # Penggunaan Obat Lain (Polifarmasi)
+    if 1: # Penggunaan Obat Lain (Hiperpolifarmasi)
         df_final = hitung_max_item_per_hari_folder(
         folder_sc="StockCard",
         file_rm_diuretik="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMdiuretik.xlsx",
         file_obatlain="Obatlain.xlsx",
-        output_file="Polifarmasi.xlsx"
+        output_file="Hiperpolifarmasi.xlsx"
         )
 
         print(df_result_sum.head())
