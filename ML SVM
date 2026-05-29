@@ -262,13 +262,7 @@ def run_svm_regression_normalized(
     # ==========================================
     # SAVE MODEL
     # ==========================================
-    joblib.dump(
-        model,
-        output_excel.replace(
-            ".xlsx",
-            ".pkl"
-        )
-    )
+    joblib.dump(model,"SVM_diur_weight_akum_yperdelta.pkl")
 
     # ==========================================
     # SUMMARY
@@ -299,6 +293,8 @@ def run_svm_regression_normalized(
             results_df["spearman"].std()
         ]
     })
+
+    joblib.dump(model,"SVM_diur_weight_akum_yperdelta.pkl")
 
     with pd.ExcelWriter(output_excel) as writer:
 
@@ -484,10 +480,7 @@ def run_svm_classification(
             "auc": auc
         })
 
-    joblib.dump(
-        model,
-        output_excel.replace(".xlsx", ".pkl")
-    )
+    joblib.dump(model, "SVM_Precision_classweight_numweight_akum_diur.pkl")
 
     feature_importance = pd.DataFrame({
         "feature": X.columns,
@@ -558,16 +551,16 @@ def run_svm_classification(
 if __name__ == "__main__":  
     if 1: # ML SVM REGRESI NORMALIZED
         run_svm_regression_normalized(
-            file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_akum_diuretik.xlsx",
-            output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILSVM/Klasifikasi/SVM_Precision_classweight_numweight_akum_diur.xlsx"
+            file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
+            output_excel="C:/Users/rashi/SKRIPSI/HASILSVM/Regresi/weight_akum_diur_normalized.xlsx"
             )
         
         print("selesai svm regresi") 
 
     if 0: # ML SVM KLASIFIKASI
         run_svm_classification(
-            file_path="/Users/lathifasyakira/Desktop/SKRIPSI/master_weight_akum_diuretik.xlsx",
-            output_excel="/Users/lathifasyakira/Desktop/SKRIPSI/HASILSVM/Regresi/SVM_Precision_classweight_numweight_akum_diur.xlsx",
+            file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
+            output_excel="C:/Users/rashi/SKRIPSI/HASILSVM/Klasifikasi/SVM_Precision_classweight_numweight_akum_diur.xlsx",
             batas_atas=-9,
             batas_bawah=-10
             )
