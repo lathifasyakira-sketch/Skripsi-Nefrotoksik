@@ -442,7 +442,7 @@ if __name__ == "__main__":
 
         print ("selesai")  
 
-    if 1: # Status Komorbid dan Gangguan Elektro
+    if 1: # Status Komorbid dan Gangguan Elektrolit
         df_rm = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMdiuretik.xlsx")
         df_dict = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/Komorbid_GGElektro.xlsx")
 
