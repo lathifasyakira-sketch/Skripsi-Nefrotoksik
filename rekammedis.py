@@ -162,6 +162,74 @@ def create_diagnosis_features(df_rm, df_dict, weight_map=None, mode='merge_weigh
     
     return df
 
+def create_diagnosis_features_simple(df_rm, df_dict):
+    """
+    Membuat fitur diagnosis biner terpisah 
+
+    Output:
+    Setiap diagnosis menjadi 1 kolom biner (0/1)
+    """
+
+    df = df_rm[
+        [
+            'Medical Record No.',
+            'billing_awal',
+            'billing_akhir',
+            'Diagnosa',
+            'Diagnosa.1'
+        ]
+    ].copy()
+
+    df.columns = [
+        'MRN',
+        'billing_awal',
+        'billing_akhir',
+        'diag_awal',
+        'diag_akhir'
+    ]
+
+    df['diag_awal'] = df['diag_awal'].astype(str).str.lower()
+    df['diag_akhir'] = df['diag_akhir'].astype(str).str.lower()
+
+    grouped = {}
+
+    for _, row in df_dict.iterrows():
+
+        key = str(row['Dict']).strip()
+        key = key.replace('"', '')
+
+        patterns = list(set(
+            build_pattern(row['Diagnosa 1']) +
+            build_pattern(row['Diagnosa 2'])
+        ))
+
+        patterns = [p for p in patterns if p]
+
+        if key not in grouped:
+            grouped[key] = []
+
+        grouped[key].extend(patterns)
+
+    for key in grouped:
+        grouped[key] = list(set(grouped[key]))
+
+    for key, patterns in grouped.items():
+
+        if not patterns:
+            df[key] = 0
+            continue
+
+        match = (
+            match_patterns(df['diag_awal'], patterns) |
+            match_patterns(df['diag_akhir'], patterns)
+        )
+
+        df[key] = match.astype(int)
+
+    df = df.drop(columns=['diag_awal', 'diag_akhir'])
+
+    return df
+
 # Tambah kolom usia
 def add_usia_from_dob(
     file_merge,
@@ -351,7 +419,7 @@ def hitung_cci_akumulasi(
 
 
 if __name__ == "__main__":
-    if 0: 
+    if 0: # Diagnosa Pasien
         df_rm = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMdiuretik.xlsx")
         df_dict = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/Diagnosis_Diuretik.xlsx")
 
@@ -374,6 +442,22 @@ if __name__ == "__main__":
 
         print ("selesai")  
 
+    if 1: # Status Komorbid
+        df_rm = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMdiuretik.xlsx")
+        df_dict = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/Komorbid.xlsx")
+
+
+        cols = ['Diagnosa', 'Diagnosa.1']
+
+        df_rm[cols] = df_rm[cols].replace(r'[\r\n]+', '|', regex=True)
+        df_dict = df_dict.replace(r'[\r\n]+', '|', regex=True)
+    
+        df_kom = create_diagnosis_features_simple(df_rm, df_dict)
+
+        df_kom.to_excel('StatusKomorbid.xlsx', index=False)   
+
+        print ("selesai")       
+
     if 0: # Tambah kolom usia
         df = add_usia_from_dob(
             file_merge="/Users/lathifasyakira/Desktop/SKRIPSI/merge_s05e06d07.xlsx",
@@ -383,7 +467,7 @@ if __name__ == "__main__":
         
         print ("selesai")     
 
-    if 1: # CCI
+    if 0: # CCI
         df_pasien = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMDiuretik.xlsx")
         df_cci = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/CCI.xlsx")
         df_result_sum = hitung_cci_akumulasi(df_pasien, df_cci)
