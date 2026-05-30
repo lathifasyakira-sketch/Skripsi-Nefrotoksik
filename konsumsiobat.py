@@ -118,20 +118,16 @@ def hitung_nefrotoksik(
     df_nefro,
     col_mr='MR No. / Vendor Code',
     col_item='Item Name',
-    col_nefro_1=1,
-    col_nefro_05='0,5'
+    col_nefro_1='Obat',
 ):
     """
-    Menghasilkan dataframe berisi MR No dan status nefrotoksik (0, 0.5, 1)
+    Menghasilkan dataframe berisi MR No dan status nefrotoksik (0, 1)
     """
 
     col_1 = df_nefro[[col_nefro_1]].dropna().rename(columns={col_nefro_1: col_item})
     col_1['nefro_score'] = 1
 
-    col_05 = df_nefro[[col_nefro_05]].dropna().rename(columns={col_nefro_05: col_item})
-    col_05['nefro_score'] = 0.5
-
-    df_nefro_long = pd.concat([col_1, col_05], ignore_index=True)
+    df_nefro_long = pd.concat([col_1], ignore_index=True)
 
     df_nefro_long[col_item] = (
         df_nefro_long[col_item]
@@ -171,8 +167,7 @@ def hitung_nefrotoksik_akumulasi(
     df_nefro,
     col_mr='MR No. / Vendor Code',
     col_item='Item Name',
-    col_nefro_1=1,
-    col_nefro_05='0,5'
+    col_nefro_1='Obat',
 ):
     """
     Menghasilkan dataframe berisi MR No dan skor nefrotoksik (akumulasi)
@@ -183,10 +178,7 @@ def hitung_nefrotoksik_akumulasi(
     col_1 = df_nefro[[col_nefro_1]].dropna().rename(columns={col_nefro_1: col_item})
     col_1['nefro_score'] = 1
 
-    col_05 = df_nefro[[col_nefro_05]].dropna().rename(columns={col_nefro_05: col_item})
-    col_05['nefro_score'] = 0.5
-
-    df_nefro_long = pd.concat([col_1, col_05], ignore_index=True)
+    df_nefro_long = pd.concat([col_1], ignore_index=True)
 
     df_nefro_long[col_item] = (
         df_nefro_long[col_item]
@@ -226,23 +218,18 @@ def hitung_nefrotoksik_akumulasi_unique(
     df_nefro,
     col_mr='MR No. / Vendor Code',
     col_item='Item Name',
-    col_nefro_1=1,
-    col_nefro_05='0,5'
+    col_nefro_1='Obat',
 ):
     """
     Menghasilkan skor nefrotoksik berbasis UNIQUE OBAT per pasien
     contoh:
     - pasien minum obat A (1) 10x → tetap dihitung 1
-    - pasien minum A (1) + B (1) + C (0.5) → total 2.5
     """
 
     col_1 = df_nefro[[col_nefro_1]].dropna().rename(columns={col_nefro_1: col_item})
     col_1['nefro_score'] = 1
 
-    col_05 = df_nefro[[col_nefro_05]].dropna().rename(columns={col_nefro_05: col_item})
-    col_05['nefro_score'] = 0.5
-
-    df_nefro_long = pd.concat([col_1, col_05], ignore_index=True)
+    df_nefro_long = pd.concat([col_1], ignore_index=True)
 
     df_nefro_long[col_item] = (
         df_nefro_long[col_item]
@@ -485,6 +472,7 @@ if __name__ == "__main__":
         df_nefro = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/Nefrotoksik.xlsx")
 
         df_result = hitung_nefrotoksik(df_konsumsi, df_nefro)
+        df_result.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/NefrotoksikMaksimalisasi.xlsx", index=False)
 
         print(df_result.head())
 
@@ -493,6 +481,7 @@ if __name__ == "__main__":
         df_nefro = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/Nefrotoksik.xlsx")
         
         df_result_sum = hitung_nefrotoksik_akumulasi_unique(df_konsumsi, df_nefro)
+        df_result_sum.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/NefrotoksikAkumulasi.xlsx", index=False)
         
         print(df_result_sum.head())
 
