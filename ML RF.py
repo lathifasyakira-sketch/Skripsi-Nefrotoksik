@@ -724,7 +724,7 @@ def run_ml_experiment(
         "bootstrap": [True, False]
     }
 
-    KFold = KFold(
+    kfold = kfold(
         n_splits=5,
         shuffle=True,
         random_state=42
@@ -738,7 +738,7 @@ def run_ml_experiment(
             n_jobs=-1
         ),
         param_grid,
-        cv=KFold,
+        cv=kfold,
         scoring="r2",
         n_jobs=-1,
         verbose=1
@@ -876,7 +876,7 @@ def run_ml_experiment(
         ]
     })
 
-    joblib.dump(model,"diur_weight_maks_ynondelta.pkl")
+    joblib.dump(model,"diur_weight_akum_ynondelta.pkl")
 
     with pd.ExcelWriter(output_excel) as writer:
 
@@ -939,7 +939,7 @@ def run_ml_experiment_normalized(
         "bootstrap": [True, False]
     }
 
-    KFold = KFold(
+    kfold = KFold(
         n_splits=5,
         shuffle=True,
         random_state=42
@@ -953,7 +953,7 @@ def run_ml_experiment_normalized(
             n_jobs=-1
         ),
         param_grid,
-        cv=KFold,
+        cv=kfold,
         scoring="r2",
         n_jobs=-1,
         verbose=1
@@ -1091,7 +1091,7 @@ def run_ml_experiment_normalized(
         ]
     })
     
-    joblib.dump(model,"diur_weight_maks_yperdelta.pkl")
+    joblib.dump(model,"diur_weight_akum_yperdelta.pkl")
     
     with pd.ExcelWriter(output_excel) as writer:
 
@@ -1525,7 +1525,7 @@ if __name__ == "__main__":
             
             print("selesai")
 
-    if 0: # Build Master Dataset (add Polifarmasi)
+    if 0: # Build Master Dataset (add Hiperpolifarmasi)
             df_master = build_master_dataset_cci_com_hiperpol(
                 file_pasien="C:/Users/rashi/SKRIPSI/variabelX/RMDiuretikFIX.xlsx",
                 file_diuretik="C:/Users/rashi/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
@@ -1534,7 +1534,7 @@ if __name__ == "__main__":
                 file_egfr="C:/Users/rashi/SKRIPSI/variabelX/egfr_delta.xlsx",
                 file_cci="C:/Users/rashi/SKRIPSI/variabelX/CCIAkumulasi.xlsx",
                 file_diag="C:/Users/rashi/SKRIPSI/variabelX/StatusKomorbid_GGElektro.xlsx",
-                file_polifarmasi="C:/Users/rashi/SKRIPSI/variabelX/Polifarmasi.xlsx",
+                file_polifarmasi="C:/Users/rashi/SKRIPSI/variabelX/Hiperpolifarmasi.xlsx",
                 output_file="master_weight_akum_diuretik.xlsx"
                 )
             
@@ -1548,15 +1548,15 @@ if __name__ == "__main__":
         
         print("selesai original")
 
-    if 0: # ML RF REGRESI NORMALIZED DELTA (y adalah y dibagi delta days, tidak dijadikan x lagi delta daysnya)
+    if 1: # ML RF REGRESI NORMALIZED DELTA (y adalah y dibagi delta days, tidak dijadikan x lagi delta daysnya)
         run_ml_experiment_normalized(
-            file_path="C:/Users/rashi/SKRIPSI/master_weight_maks_diuretik.xlsx",
-            output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Regresi/hasil_weight_maks_diur_normalized.xlsx"
+            file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
+            output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Regresi/hasil_weight_akum_diur_normalized.xlsx"
             )
 
         print("selesai normalized")
 
-    if 1: # ML RF KLASIFIKASI
+    if 0: # ML RF KLASIFIKASI
         run_rf_classification(
             file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
             output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx",
