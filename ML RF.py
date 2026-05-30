@@ -724,7 +724,7 @@ def run_ml_experiment(
         "bootstrap": [True, False]
     }
 
-    kfold = kfold(
+    KFold = KFold(
         n_splits=5,
         shuffle=True,
         random_state=42
@@ -738,7 +738,7 @@ def run_ml_experiment(
             n_jobs=-1
         ),
         param_grid,
-        cv=kfold,
+        cv=KFold,
         scoring="r2",
         n_jobs=-1,
         verbose=1
@@ -939,7 +939,7 @@ def run_ml_experiment_normalized(
         "bootstrap": [True, False]
     }
 
-    kfold = KFold(
+    KFold = KFold(
         n_splits=5,
         shuffle=True,
         random_state=42
@@ -953,7 +953,7 @@ def run_ml_experiment_normalized(
             n_jobs=-1
         ),
         param_grid,
-        cv=kfold,
+        cv=KFold,
         scoring="r2",
         n_jobs=-1,
         verbose=1
