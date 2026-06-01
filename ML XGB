@@ -33,11 +33,11 @@ def run_xgboost_experiment(
 
     # HYPERPARAMETER
     param_grid = {
-        "n_estimators": [100, 300],
-        "max_depth": [3, 5, 7],
-        "learning_rate": [0.01, 0.05, 0.1],
-        "subsample": [0.8, 1.0],
-        "colsample_bytree": [0.8, 1.0]
+        "model__n_estimators": [100, 300, 500,1000],
+        "model__max_depth": [3, 6, 10, 15],
+        "model__learning_rate": [0.01, 0.05, 0.1, 0.2],
+        "model__subsample": [0.6, 0.8, 1.0],
+        "model__colsample_bytree": [0.6, 0.8, 1.0],
     }
 
     kfold = KFold(
@@ -188,10 +188,7 @@ def run_xgboost_experiment(
         ]
     })
 
-    joblib.dump(
-    model,
-    output_excel.replace(".xlsx", ".pkl")
-    )
+    joblib.dump(model,"XGB_diur_weight_akum_yperdelta.pkl")
 
     with pd.ExcelWriter(output_excel) as writer:
 
@@ -265,23 +262,25 @@ def run_xgboost_classification(
     # HYPERPARAMETER
     param_grid = {
 
-        "n_estimators": [50, 100, 300],
+        "model__n_estimators": [100, 300, 500,1000],
 
-        "max_depth": [2, 3, 4, 5, 7],
+        "model__max_depth": [3, 6, 10, 15],
 
-        "learning_rate": [
+        "model__learning_rate": [
             0.01,
             0.05,
             0.1,
             0.2
         ],
 
-        "subsample": [
+        "model__subsample": [
+            0.6,
             0.8,
             1.0
         ],
 
-        "colsample_bytree": [
+        "model__colsample_bytree": [
+            0,6,
             0.8,
             1.0
         ]
@@ -422,10 +421,7 @@ def run_xgboost_classification(
             "auc": auc
         })
 
-    joblib.dump(
-        model,
-        output_excel.replace(".xlsx", ".pkl")
-    )
+    joblib.dump(model,"XGB_Precision_classweight_numweight_akum_diur.pkl")
 
     feature_importance = pd.DataFrame({
 
