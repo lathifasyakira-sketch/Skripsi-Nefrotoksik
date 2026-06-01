@@ -4,98 +4,60 @@ import numpy as np
 import matplotlib.pyplot as plt
 import joblib
 from sklearn.model_selection import (train_test_split, GridSearchCV, KFold)
-from sklearn.svm import SVR
+from xgboost import XGBRegressor
 from sklearn.metrics import (r2_score, mean_absolute_error, mean_squared_error)
 from scipy.stats import spearmanr
-from sklearn.svm import SVC
+from xgboost import XGBClassifier
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix)
 
 
-def run_svm_regression_normalized(
+def run_xgboost_experiment(
     file_path,
     output_excel
 ):
 
     df = pd.read_excel(file_path)
 
-    df = df.dropna(subset=[
-        "delta",
-        "days"
-    ])
+    df = df.dropna(subset=["delta"])
 
-    # HINDARI DIVIDE BY ZERO
-    df = df[df["days"] > 0]
-
-    df["delta_per_day"] = (
-        df["delta"] / df["days"]
-    )
-
-    y = df["delta_per_day"]
+    y = df["delta"]
 
     mrn = df["MRN"]
 
     X = df.drop(columns=[
         "MRN",
-        "delta",
-        "delta_per_day",
-        "days"
+        "delta"
     ])
 
     X = X.fillna(0)
 
     # HYPERPARAMETER
     param_grid = {
-
-        "C": [
-            0.0001,
-            0.001,
-            0.01,
-            0.1,
-            1,
-            10,
-            100,
-            1000
-        ],
-
-        "epsilon": [
-            0.001,
-            0.01,
-            0.1,
-            1
-        ],
-
-        "kernel": [
-            "linear",
-            "rbf",
-            "sigmoid"
-        ],
-
-        "gamma": [
-            "scale",
-            "auto"
-        ]
+        "model__n_estimators": [100, 300, 500,1000],
+        "model__max_depth": [3, 6, 10, 15],
+        "model__learning_rate": [0.01, 0.05, 0.1, 0.2],
+        "model__subsample": [0.6, 0.8, 1.0],
+        "model__colsample_bytree": [0.6, 0.8, 1.0],
     }
 
-    StratifyKfold = KFold(
+    kfold = KFold(
         n_splits=5,
         shuffle=True,
         random_state=42
     )
 
-    print("=== TUNING SVM REGRESSION ===")
+    print("=== TUNING XGBOOST ===")
 
     grid = GridSearchCV(
-
-        SVR(),
-
+        XGBRegressor(
+            objective="reg:squarederror",
+            random_state=42,
+            n_jobs=-1
+        ),
         param_grid,
-
-        cv=StratifyKfold,
-
-        scoring="r2",
-
+        cv=kfold,
+        scoring="neg_mean_absolute_error",
         n_jobs=-1,
-
         verbose=1
     )
 
@@ -117,7 +79,10 @@ def run_svm_regression_normalized(
             random_state=run
         )
 
-        model = SVR(
+        model = XGBRegressor(
+            objective="reg:squarederror",
+            random_state=42,
+            n_jobs=-1,
             **grid.best_params_
         )
 
@@ -125,22 +90,12 @@ def run_svm_regression_normalized(
 
         y_pred = model.predict(X_test)
 
-        # METRICS
-        r2 = r2_score(
-            y_test,
-            y_pred
-        )
+        r2 = r2_score(y_test, y_pred)
 
-        mae = mean_absolute_error(
-            y_test,
-            y_pred
-        )
+        mae = mean_absolute_error(y_test, y_pred)
 
         rmse = np.sqrt(
-            mean_squared_error(
-                y_test,
-                y_pred
-            )
+            mean_squared_error(y_test, y_pred)
         )
 
         spearman_corr, _ = spearmanr(
@@ -154,11 +109,8 @@ def run_svm_regression_normalized(
         print(f"Spearman: {spearman_corr:.3f}")
 
         pred_df = pd.DataFrame({
-
             "MRN": mrn_test.values,
-
             "y_true": y_test.values,
-
             "y_pred": y_pred
         })
 
@@ -167,18 +119,11 @@ def run_svm_regression_normalized(
             f"_prediction_run{run+1}.xlsx"
         )
 
-        pred_df.to_excel(
-            pred_path,
-            index=False
-        )
+        pred_df.to_excel(pred_path, index=False)
 
         plt.figure(figsize=(6, 6))
 
-        plt.scatter(
-            y_test,
-            y_pred,
-            alpha=0.7
-        )
+        plt.scatter(y_test, y_pred, alpha=0.7)
 
         min_val = min(
             y_test.min(),
@@ -196,11 +141,11 @@ def run_svm_regression_normalized(
             linestyle="--"
         )
 
-        plt.xlabel("Actual Delta/Day")
+        plt.xlabel("Actual Delta")
 
-        plt.ylabel("Predicted Delta/Day")
+        plt.ylabel("Predicted Delta")
 
-        plt.title(f"SVM Y-Y Plot Run {run+1}")
+        plt.title(f"XGBoost Y-Y Plot Run {run+1}")
 
         plt.tight_layout()
 
@@ -209,90 +154,41 @@ def run_svm_regression_normalized(
             f"_yyplot_run{run+1}.png"
         )
 
-        plt.savefig(
-            plot_path,
-            dpi=300
-        )
+        plt.savefig(plot_path, dpi=300)
 
         plt.close()
 
         results.append({
-
             "run": run+1,
-
             "r2": r2,
-
             "mae": mae,
-
             "rmse": rmse,
-
             "spearman": spearman_corr
         })
 
-    # ==========================================
-    # FEATURE IMPORTANCE
-    # hanya untuk linear kernel
-    # ==========================================
-    if grid.best_params_["kernel"] == "linear":
-
-        feature_importance = pd.DataFrame({
-
-            "feature": X.columns,
-
-            "importance": np.abs(
-                model.coef_[0]
-            )
-        })
-
-        feature_importance = feature_importance.sort_values(
-            by="importance",
-            ascending=False
-        )
-
-        feature_importance.to_excel(
-
-            output_excel.replace(
-                ".xlsx",
-                "_feature_importance.xlsx"
-            ),
-
-            index=False
-        )
-
-    # ==========================================
-    # SAVE MODEL
-    # ==========================================
-    joblib.dump(model,"SVM_diur_weight_akum_yperdelta.pkl")
-
-    # ==========================================
-    # SUMMARY
-    # ==========================================
     results_df = pd.DataFrame(results)
 
     summary = pd.DataFrame({
-
         "metric": ["mean", "std"],
-
         "r2": [
             results_df["r2"].mean(),
             results_df["r2"].std()
         ],
-
         "mae": [
             results_df["mae"].mean(),
             results_df["mae"].std()
         ],
-
         "rmse": [
             results_df["rmse"].mean(),
             results_df["rmse"].std()
         ],
-
         "spearman": [
             results_df["spearman"].mean(),
             results_df["spearman"].std()
         ]
     })
+
+    joblib.dump(model,"XGB_diur_weight_akum_yperdelta.pkl")
 
     with pd.ExcelWriter(output_excel) as writer:
 
@@ -308,9 +204,9 @@ def run_svm_regression_normalized(
             index=False
         )
 
-    print("\n=== SELESAI SVM REGRESSION ===")
+    print("\n=== SELESAI XGBOOST ===")
 
-def run_svm_classification(
+def run_xgboost_classification(
     file_path,
     output_excel,
     batas_atas=-9,
@@ -341,10 +237,12 @@ def run_svm_classification(
     print("\n=== DISTRIBUSI TARGET ===")
     print(df["target"].value_counts())
 
+    # TARGET
     y = df["target"]
 
     mrn = df["MRN"]
 
+    # FEATURE
     X = df.drop(columns=[
         "MRN",
         "delta",
@@ -355,14 +253,40 @@ def run_svm_classification(
 
     X = X.fillna(0)
 
+    scale_pos_weight = (
+        (y == 0).sum() / (y == 1).sum()
+    )
+
+    print("\nscale_pos_weight:", scale_pos_weight)
+
     # HYPERPARAMETER
     param_grid = {
-        "C": [0.0001,0.001,0.01, 0.1, 1, 10, 100,1000],
-        "kernel": ["linear", "RBF","sigmoid"],
-        "gamma": ["scale", "auto"]
+
+        "model__n_estimators": [100, 300, 500,1000],
+
+        "model__max_depth": [3, 6, 10, 15],
+
+        "model__learning_rate": [
+            0.01,
+            0.05,
+            0.1,
+            0.2
+        ],
+
+        "model__subsample": [
+            0.6,
+            0.8,
+            1.0
+        ],
+
+        "model__colsample_bytree": [
+            0,6,
+            0.8,
+            1.0
+        ]
     }
 
-    print("\n=== TUNING SVM CLASSIFIER ===")
+    print("\n=== TUNING XGBOOST CLASSIFIER ===")
 
     StratifyKFold = KFold(
         n_splits=5,
@@ -371,15 +295,22 @@ def run_svm_classification(
     )
 
     grid = GridSearchCV(
-        SVC(
-            probability=True,
-            class_weight="balanced",
-            random_state=42
+
+        XGBClassifier(
+            random_state=42,
+            n_jobs=-1,
+            eval_metric="logloss",
+            scale_pos_weight=scale_pos_weight
         ),
+
         param_grid,
+
         cv=StratifyKFold,
+
         scoring="average_precision",
+
         n_jobs=-1,
+
         verbose=1
     )
 
@@ -402,11 +333,12 @@ def run_svm_classification(
             stratify=y
         )
 
-        model = SVC(
+        model = XGBClassifier(
             **grid.best_params_,
-            probability=True,
-            class_weight="balanced",
-            random_state=42
+            random_state=42,
+            n_jobs=-1,
+            eval_metric="logloss",
+            scale_pos_weight=scale_pos_weight
         )
 
         model.fit(X_train, y_train)
@@ -415,6 +347,7 @@ def run_svm_classification(
 
         y_prob = model.predict_proba(X_test)[:,1]
 
+        # METRICS
         acc = accuracy_score(y_test, y_pred)
 
         precision = precision_score(
@@ -467,22 +400,34 @@ def run_svm_classification(
             f"_prediction_run{run+1}.xlsx"
         )
 
-        pred_df.to_excel(pred_path, index=False)
+        pred_df.to_excel(
+            pred_path,
+            index=False
+        )
 
+        # SAVE RESULT
         results.append({
+
             "run": run+1,
+
             "accuracy": acc,
+
             "precision": precision,
+
             "recall": recall,
+
             "f1": f1,
+
             "auc": auc
         })
 
-    joblib.dump(model,"SVM_Precision_classweight_numweight_akum_diur.pkl")
+    joblib.dump(model,"XGB_Precision_classweight_numweight_akum_diur.pkl")
 
     feature_importance = pd.DataFrame({
+
         "feature": X.columns,
-        "importance": np.abs(model.coef_[0])
+
+        "importance": model.feature_importances_
     })
 
     feature_importance = feature_importance.sort_values(
@@ -491,16 +436,19 @@ def run_svm_classification(
     )
 
     feature_importance.to_excel(
+
         output_excel.replace(
             ".xlsx",
             "_feature_importance.xlsx"
         ),
+
         index=False
     )
 
     results_df = pd.DataFrame(results)
 
     summary = pd.DataFrame({
+
         "metric": ["mean", "std"],
 
         "accuracy": [
@@ -543,24 +491,24 @@ def run_svm_classification(
             index=False
         )
 
-    print("\n=== SELESAI SVM CLASSIFICATION ===")
+    print("\n=== SELESAI XGBOOST CLASSIFICATION ===")
 
 
-if __name__ == "__main__":  
-    if 0: # ML SVM REGRESI NORMALIZED
-        run_svm_regression_normalized(
+if __name__ == "__main__": 
+    if 0: # XG BOOST REGRESI
+        run_xgboost_experiment(
             file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
-            output_excel="C:/Users/rashi/SKRIPSI/HASILSVM/Regresi/weight_akum_diur_normalized.xlsx"
-            )
-        
-        print("selesai svm regresi") 
+            output_excel="C:/Users/rashi/SKRIPSI/HASILXGB/Regresi/weight_akum_diur_normalized.xlsx"
+        )
 
-    if 1: # ML SVM KLASIFIKASI
-        run_svm_classification(
+    print("selesai xgboost regresi")
+
+    if 0: #XG BOOST KLASIFIKASI
+        run_xgboost_classification(
             file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
-            output_excel="C:/Users/rashi/SKRIPSI/HASILSVM/Klasifikasi/SVM_Precision_classweight_numweight_akum_diur.xlsx",
+            output_excel="C:/Users/rashi/SKRIPSI/HASILXGB/Klasifikasi/XGB_Precision_classweight_numweight_akum_diur.xlsx",
             batas_atas=-9,
             batas_bawah=-10
-            )
-        
-        print("selesai svm classification") 
+        )
+
+    print("selesai xgboost classification")
