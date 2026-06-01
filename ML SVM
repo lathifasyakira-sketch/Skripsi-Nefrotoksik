@@ -478,6 +478,8 @@ def run_svm_classification(
             "auc": auc
         })
 
+    joblib.dump(model,"SVM_Precision_classweight_numweight_akum_diur.pkl")
+
     feature_importance = pd.DataFrame({
         "feature": X.columns,
         "importance": np.abs(model.coef_[0])
@@ -526,8 +528,6 @@ def run_svm_classification(
             results_df["auc"].std()
         ]
     })
-
-    joblib.dump(model,"SVM_Precision_classweight_numweight_akum_diur.pkl")
 
     with pd.ExcelWriter(output_excel) as writer:
 
