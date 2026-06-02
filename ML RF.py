@@ -11,6 +11,8 @@ from sklearn.ensemble import (RandomForestClassifier)
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix)
 from sklearn.metrics import (confusion_matrix, ConfusionMatrixDisplay)
 import matplotlib.colors as mcolors
+import os
+import glob
 
 
 def build_egfr_delta(
@@ -1490,6 +1492,89 @@ def extract_rf_feature_importance(
 
     return importance_df
 
+from sklearn.metrics import (
+    matthews_corrcoef,
+    average_precision_score
+)
+def evaluate_prediction_folder(
+    folder_path,
+    output_file="summary_mcc_auprc.xlsx",
+    true_col="y_true",
+    pred_col="y_pred",
+    prob_col="y_prob"
+):
+    """
+    Hitung MCC dan AUPRC untuk semua file excel dalam folder.
+    """
+    files = glob.glob(os.path.join(folder_path, "*.xlsx"))
+    
+    files = [
+    f for f in files
+    if "run" in os.path.basename(f).lower()
+    ]
+
+    results = []
+
+    for file in files:
+
+        try:
+            df = pd.read_excel(file)
+
+            mcc = matthews_corrcoef(
+                df[true_col],
+                df[pred_col]
+            )
+
+            auprc = average_precision_score(
+                df[true_col],
+                df[prob_col]
+            )
+
+            results.append({
+                "file": os.path.basename(file),
+                "n_data": len(df),
+                "MCC": mcc,
+                "AUPRC": auprc
+            })
+
+            print(f"OK : {os.path.basename(file)}")
+
+        except Exception as e:
+            print(f"ERROR : {os.path.basename(file)} -> {e}")
+
+    result_df = pd.DataFrame(results)
+
+    mean_row = {
+        "file": "MEAN",
+        "n_data": result_df["n_data"].mean(),
+        "MCC": result_df["MCC"].mean(),
+        "AUPRC": result_df["AUPRC"].mean()
+    }
+
+    std_row = {
+        "file": "STD",
+        "n_data": result_df["n_data"].std(),
+        "MCC": result_df["MCC"].std(),
+        "AUPRC": result_df["AUPRC"].std()
+    }
+
+    result_df = pd.concat(
+        [
+            result_df,
+            pd.DataFrame([mean_row, std_row])
+        ],
+        ignore_index=True
+    )
+
+    output_path = os.path.join(folder_path, output_file)
+
+    result_df.to_excel(output_path, index=False)
+
+    print("\nHasil disimpan ke:")
+    print(output_path)
+
+    return result_df
+
 if __name__ == "__main__":  
     if 0: # eGFRR delta
         df_delta = build_egfr_delta(
@@ -1620,3 +1705,13 @@ if __name__ == "__main__":
         )
 
         print("selesai")
+
+    if 0: # MCC & AUPRC
+        folder = r"D:\File_Syaki\SKRIPSINEW\HASILRF\Klasifikasi\Precision_classweight\precision_weight_akum_diur_original"
+
+        summary = evaluate_prediction_folder(
+            folder_path=folder,
+            output_file=f"{folder}/summary_MCC_AUPRC.xlsx"
+        )
+
+        print(summary)
