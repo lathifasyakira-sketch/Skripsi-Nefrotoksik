@@ -13,7 +13,7 @@ from sklearn.metrics import (confusion_matrix, ConfusionMatrixDisplay)
 import matplotlib.colors as mcolors
 import os
 import glob
-
+from sklearn.metrics import (matthews_corrcoef, average_precision_score)
 
 def build_egfr_delta(
     file_path,
@@ -1114,8 +1114,8 @@ def run_ml_experiment_normalized(
 def run_rf_classification(
     file_path,
     output_excel,
-    batas_atas=-9,
-    batas_bawah=-10
+    batas_atas=0,
+    batas_bawah=-2
 ):
 
     df = pd.read_excel(file_path)
@@ -1507,7 +1507,7 @@ def evaluate_prediction_folder(
     Hitung MCC dan AUPRC untuk semua file excel dalam folder.
     """
     files = glob.glob(os.path.join(folder_path, "*.xlsx"))
-    
+
     files = [
     f for f in files
     if "run" in os.path.basename(f).lower()
@@ -1645,8 +1645,8 @@ if __name__ == "__main__":
         run_rf_classification(
             file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
             output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx",
-            batas_atas=-9,
-            batas_bawah=-15
+            batas_atas=0,
+            batas_bawah=-2
             )
         
         print("selesai rf classification")
@@ -1662,8 +1662,8 @@ if __name__ == "__main__":
     if 0: # Feature Importance
         file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx"
         output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx"
-        batas_atas=-9,
-        batas_bawah=-10
+        batas_atas=0,
+        batas_bawah=-2
 
         df = pd.read_excel(file_path)
 
@@ -1707,7 +1707,7 @@ if __name__ == "__main__":
         print("selesai")
 
     if 0: # MCC & AUPRC
-        folder = r"D:\File_Syaki\SKRIPSINEW\HASILRF\Klasifikasi\Precision_classweight\precision_weight_akum_diur_original"
+        folder = r"D:\File_Syaki\SKRIPSINEW\HASILRF\Klasifikasi\Precision_classweight_numweight_akum"
 
         summary = evaluate_prediction_folder(
             folder_path=folder,
