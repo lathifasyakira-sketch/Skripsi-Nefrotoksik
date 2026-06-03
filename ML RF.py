@@ -15,6 +15,7 @@ import os
 import glob
 from sklearn.metrics import (matthews_corrcoef, average_precision_score)
 
+
 def build_egfr_delta(
     file_path,
     col_mrn="Medical Record No.",
@@ -439,14 +440,14 @@ def build_master_dataset_cci_com(
     return master
 
 def build_master_dataset_cci_com_hiperpol(
-    file_pasien="RMDiuretik.xlsx",
+    file_pasien="RMDiuretikFIX.xlsx",
     file_diuretik="diuretikfinal3bulan.xlsx",
     file_usia="merge_with_usia.xlsx",
-    file_nefro="nefrotoksikakumulasi.xlsx",
+    file_nefro="NefrotoksikAkumulasi.xlsx",
     file_egfr="egfr_delta.xlsx",
-    file_cci="cci.xlsx",
-    file_diag="diagnosis_feature.xlsx",
-    file_polifarmasi="polifarmasi.xlsx",
+    file_cci="CCIAkumulasi.xlsx",
+    file_diag="StatusKomorbid_GGElektro.xlsx",
+    file_polifarmasi="Hiperpolifarmasi.xlsx",
     output_file=None
 ):
     df_base = pd.read_excel(file_pasien)
@@ -878,7 +879,7 @@ def run_ml_experiment(
         ]
     })
 
-    joblib.dump(model,"diur_weight_akum_ynondelta.pkl")
+    joblib.dump(model,"diur_stratify_weight_akum_diagawal_ori_ynondelta.pkl")
 
     with pd.ExcelWriter(output_excel) as writer:
 
@@ -941,7 +942,7 @@ def run_ml_experiment_normalized(
         "bootstrap": [True, False]
     }
 
-    kfold = KFold(
+    stratifykfold = KFold(
         n_splits=5,
         shuffle=True,
         random_state=42
@@ -955,7 +956,7 @@ def run_ml_experiment_normalized(
             n_jobs=-1
         ),
         param_grid,
-        cv=kfold,
+        cv=stratifykfold,
         scoring="r2",
         n_jobs=-1,
         verbose=1
@@ -1093,7 +1094,7 @@ def run_ml_experiment_normalized(
         ]
     })
     
-    joblib.dump(model,"diur_weight_akum_yperdelta.pkl")
+    joblib.dump(model,"diur_regresi_stratify_weight_akum_normalized_yperdelta.pkl")
     
     with pd.ExcelWriter(output_excel) as writer:
 
@@ -1176,7 +1177,7 @@ def run_rf_classification(
 
     print("\n=== TUNING RF CLASSIFIER ===")
 
-    StratifyKFold = KFold(
+    kfold = KFold(
         n_splits=5,
         shuffle=True,
         random_state=42
@@ -1186,10 +1187,10 @@ def run_rf_classification(
         RandomForestClassifier(
             random_state=42,
             n_jobs=-1,
-            class_weight = "balanced"
+        
         ),
         param_grid,
-        cv=StratifyKFold,
+        cv=kfold,
         scoring="average_precision",
         n_jobs=-1,
         verbose=1
@@ -1218,7 +1219,7 @@ def run_rf_classification(
             **grid.best_params_,
             random_state=42,
             n_jobs=-1,
-            class_weight = "balanced"
+        
         )
 
         model.fit(X_train, y_train)
@@ -1293,7 +1294,7 @@ def run_rf_classification(
         })
 
     # SAVE MODEL
-    joblib.dump(model,"Precision_classweight_numweight_akum_diur.pkl")
+    joblib.dump(model,"kfold_Precision_noclassweight_numweight_akum_diur.pkl")
 
     # SUMMARY
     results_df = pd.DataFrame(results)
@@ -1492,10 +1493,6 @@ def extract_rf_feature_importance(
 
     return importance_df
 
-from sklearn.metrics import (
-    matthews_corrcoef,
-    average_precision_score
-)
 def evaluate_prediction_folder(
     folder_path,
     output_file="summary_mcc_auprc.xlsx",
@@ -1578,73 +1575,73 @@ def evaluate_prediction_folder(
 if __name__ == "__main__":  
     if 0: # eGFRR delta
         df_delta = build_egfr_delta(
-        "C:/Users/rashi/SKRIPSI/kurasiegfrcombinedinterval.xlsx",
-        output_file="C:/Users/rashi/SKRIPSI/egfr_delta.xlsx"
+        "D:\File_Syaki\SKRIPSINEW\kurasiegfrcombinedinterval.xlsx",
+        output_file="D:\File_Syaki\SKRIPSINEW\egfr_delta.xlsx"
         )
 
         print("selesai")
 
     if 0: # Build Master Dataset (Menggabungkan Data untuk ML)
         df_master = build_master_dataset(
-            file_pasien="C:/Users/rashi/SKRIPSI/variabelX/RMDiuretikFIX.xlsx",
-            file_diuretik="C:/Users/rashi/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
-            file_usia="C:/Users/rashi/SKRIPSI/variabelX/merge_with_usia.xlsx",
-            file_nefro="C:/Users/rashi/SKRIPSI/variabelX/NefrotoksikMaksimalisasi.xlsx",
-            file_egfr="C:/Users/rashi/Downloads/egfr_delta.xlsx",
-            output_file="master_weight_maks_diuretik_old.xlsx"
+                file_pasien=r"D:\File_Syaki\SKRIPSINEW\variabelX\RMDiuretikFIX.xlsx",
+                file_diuretik=r"D:\File_Syaki\SKRIPSINEW\variabelX\diuretikfinal3bulan.xlsx",
+                file_usia=r"d:\File_Syaki\SKRIPSINEW\variabelX\merge_with_usia.xlsx",
+                file_nefro=r"D:\File_Syaki\SKRIPSINEW\variabelX\NefrotoksikAkumulasi.xlsx",
+                file_egfr=r"D:\File_Syaki\SKRIPSINEW\variabelX\egfr_delta.xlsx",
+                output_file=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_onehot_akum_diuretik.xlsx"
             )
         
         print("selesai")
 
     if 0: # Build Master Dataset (add CCI, Komorbid, dan Gangguan Elektrolit)
             df_master = build_master_dataset_cci_com(
-                file_pasien="C:/Users/rashi/SKRIPSI/variabelX/RMDiuretikFIX.xlsx",
-                file_diuretik="C:/Users/rashi/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
-                file_usia="C:/Users/rashi/SKRIPSI/variabelX/merge_with_usia.xlsx",
-                file_nefro="C:/Users/rashi/SKRIPSI/variabelX/NefrotoksikAkumulasi.xlsx",
-                file_egfr="C:/Users/rashi/Downloads/egfr_delta.xlsx",
-                file_cci="C:/Users/rashi/SKRIPSI/variabelX/CCIAkumulasi.xlsx",
-                file_diag="C:/Users/rashi/SKRIPSI/variabelX/Komorbid_GGElektro.xlsx",
-                output_file="master_weight_akum_diuretik.xlsx"
+                file_pasien=r"D:\File_Syaki\SKRIPSINEW\variabelX\RMDiuretikFIX.xlsx",
+                file_diuretik=r"D:\File_Syaki\SKRIPSINEW\variabelX\diuretikfinal3bulan.xlsx",
+                file_usia=r"d:\File_Syaki\SKRIPSINEW\variabelX\merge_with_usia.xlsx",
+                file_nefro=r"D:\File_Syaki\SKRIPSINEW\variabelX\NefrotoksikAkumulasi.xlsx",
+                file_egfr=r"D:\File_Syaki\SKRIPSINEW\variabelX\egfr_delta.xlsx",
+                file_cci=r"D:\File_Syaki\SKRIPSINEW\variabelX\CCIAkumulasi.xlsx",
+                file_diag=r"D:\File_Syaki\SKRIPSINEW\variabelX\StatusKomorbid_GGElektro.xlsx",
+                output_file=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_weight_akum_diuretik.xlsx"
                 )
             
             print("selesai")
 
     if 0: # Build Master Dataset (add Hiperpolifarmasi)
             df_master = build_master_dataset_cci_com_hiperpol(
-                file_pasien="C:/Users/rashi/SKRIPSI/variabelX/RMDiuretikFIX.xlsx",
-                file_diuretik="C:/Users/rashi/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
-                file_usia="C:/Users/rashi/SKRIPSI/variabelX/merge_with_usia.xlsx",
-                file_nefro="C:/Users/rashi/SKRIPSI/variabelX/NefrotoksikAkumulasi.xlsx",
-                file_egfr="C:/Users/rashi/SKRIPSI/variabelX/egfr_delta.xlsx",
-                file_cci="C:/Users/rashi/SKRIPSI/variabelX/CCIAkumulasi.xlsx",
-                file_diag="C:/Users/rashi/SKRIPSI/variabelX/StatusKomorbid_GGElektro.xlsx",
-                file_polifarmasi="C:/Users/rashi/SKRIPSI/variabelX/Hiperpolifarmasi.xlsx",
-                output_file="master_weight_akum_diuretik.xlsx"
+                file_pasien=r"D:\File_Syaki\SKRIPSINEW\variabelX\RMDiuretikFIX.xlsx",
+                file_diuretik=r"D:\File_Syaki\SKRIPSINEW\variabelX\diuretikfinal3bulan.xlsx",
+                file_usia=r"d:\File_Syaki\SKRIPSINEW\variabelX\merge_diagnosaawal_diur_with_usia.xlsx",
+                file_nefro=r"D:\File_Syaki\SKRIPSINEW\variabelX\NefrotoksikAkumulasi.xlsx",
+                file_egfr=r"D:\File_Syaki\SKRIPSINEW\variabelX\egfr_delta.xlsx",
+                file_cci=r"D:\File_Syaki\SKRIPSINEW\variabelX\CCIAkumulasi.xlsx",
+                file_diag=r"D:\File_Syaki\SKRIPSINEW\variabelX\StatusKomorbid_GGElektro.xlsx",
+                file_polifarmasi=r"D:\File_Syaki\SKRIPSINEW\variabelX\Hiperpolifarmasi.xlsx",
+                output_file=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_weight_akum_diuretik_diagawal.xlsx"
                 )
             
             print("selesai")
 
     if 0: # ML RF REGRESI ORIGINAL DELTA   
         run_ml_experiment(
-            file_path="C:/Users/rashi/SKRIPSI/master_weight_maks_diuretik.xlsx",
-            output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Regresi/hasil_weight_maks_diur.xlsx"
+            file_path=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_weight_akum_diuretik_diagawal.xlsx",
+            output_excel=r"D:\File_Syaki\SKRIPSINEW\HASILRF\Regresi\diag awal\stratify_weight_akum_diur_diagawal_ori.xlsx"
             )
         
         print("selesai original")
 
     if 1: # ML RF REGRESI NORMALIZED DELTA (y adalah y dibagi delta days, tidak dijadikan x lagi delta daysnya)
         run_ml_experiment_normalized(
-            file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
-            output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Regresi/hasil_weight_akum_diur_normalized.xlsx"
+            file_path=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_weight_akum_diuretik.xlsx",
+            output_excel=r"D:\File_Syaki\SKRIPSINEW\HASILRF\Regresi\diagawal\stratify_weight_akum_diur_diag awal_normalized.xlsx"
             )
 
         print("selesai normalized")
 
     if 0: # ML RF KLASIFIKASI
         run_rf_classification(
-            file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
-            output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx",
+            file_path=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_weight_akum_diuretik.xlsx",
+            output_excel=r"D:\File_Syaki\SKRIPSINEW\HASILRF\Klasifikasi\kfold_Precision_noclassweight_numweight_akum_diur.xlsx",
             batas_atas=0,
             batas_bawah=-2
             )
@@ -1653,17 +1650,17 @@ if __name__ == "__main__":
 
     if 0: # Confussion Matrix
         plot_confusion_matrix_excel(
-            excel_path="C:/Users/rashi/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur_prediction_run1.xlsx",
+            excel_path=r"D:\File_Syaki\SKRIPSINEW\HASILRF\Klasifikasi\precision_weight_akum_diur_original\Precision_classweight_numweight_akum_diur_prediction_run3.xlsx",
             output_png="cm_run1.png"
             )
         
         print("selesai CM") 
 
     if 0: # Feature Importance
-        file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx"
-        output_excel="C:/Users/rashi/SKRIPSI/HASILRF/Klasifikasi/Precision_classweight_numweight_akum_diur.xlsx"
-        batas_atas=0,
-        batas_bawah=-2
+        file_path=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_weight_akum_diuretik.xlsx"
+        output_excel=r"D:\File_Syaki\SKRIPSINEW\HASILRF\Klasifikasi\Precision_classweight_numweight_akum_diur.xlsx"
+        batas_atas=-9,
+        batas_bawah=-10
 
         df = pd.read_excel(file_path)
 
@@ -1705,7 +1702,7 @@ if __name__ == "__main__":
         )
 
         print("selesai")
-
+    
     if 0: # MCC & AUPRC
         folder = r"D:\File_Syaki\SKRIPSINEW\HASILRF\Klasifikasi\Precision_classweight_numweight_akum"
 
