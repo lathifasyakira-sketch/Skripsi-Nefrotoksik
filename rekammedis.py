@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import ast
+import numpy as np
 
 
 def build_pattern(text):
@@ -417,11 +418,162 @@ def hitung_cci_akumulasi(
 
     return result
 
+def create_diagnosis_awal_features(df_rm, df_dict, weight_map=None, mode='merge_weighted'):
+    """
+    mode:
+    - 'merge_weighted'    -> 1 kolom per penyakit, isi weight maksimum
+    - 'separate_weighted' -> kolom terpisah per prefix
+
+    weight_map contoh:
+    {'sus':0.5, 'ec':0.6, 'dd':0.7}
+    """
+
+    if weight_map is None:
+        weight_map = {
+            'sus': 0.5,
+            'ec': 0.6,
+            'dd': 0.7
+        }
+
+    # =========================
+    # PREPARE DATA
+    # =========================
+    df = df_rm[
+        ['Medical Record No.',
+         'billing_awal',
+         'billing_akhir',
+         'Diagnosa']
+    ].copy()
+
+    df.columns = [
+        'MRN',
+        'billing_awal',
+        'billing_akhir',
+        'diag_awal'
+    ]
+
+    df['diag_awal'] = (
+        df['diag_awal']
+        .fillna('')
+        .astype(str)
+        .str.lower()
+    )
+
+    # =========================
+    # BUILD STRUCTURE
+    # =========================
+    grouped = {}
+
+    for _, row in df_dict.iterrows():
+
+        raw_key = str(row['Dict']).strip()
+        raw_key = raw_key.replace('"', '')
+        key_lower = raw_key.lower()
+
+        prefix_found = None
+
+        for prefix in weight_map:
+
+            if key_lower.startswith(prefix):
+                prefix_found = prefix
+                base_key = raw_key[len(prefix):]
+                break
+
+        if prefix_found is None:
+            base_key = raw_key
+            prefix_found = 'base'
+            weight = 1.0
+        else:
+            weight = weight_map[prefix_found]
+
+        base_key = base_key.strip()
+
+        patterns = list(set(
+            build_pattern(row['Diagnosa 1']) +
+            build_pattern(row['Diagnosa 2'])
+        ))
+
+        patterns = [p for p in patterns if p]
+
+        if base_key not in grouped:
+            grouped[base_key] = []
+
+        grouped[base_key].append({
+            'prefix': prefix_found,
+            'patterns': patterns,
+            'weight': weight
+        })
+
+    # =========================
+    # APPLY FEATURES
+    # =========================
+    if mode == 'merge_weighted':
+
+        for base_key, entries in grouped.items():
+
+            df[base_key] = 0.0
+
+            for entry in entries:
+
+                patterns = entry['patterns']
+                weight = entry['weight']
+
+                if len(patterns) == 0:
+                    continue
+
+                match = match_patterns(
+                    df['diag_awal'],
+                    patterns
+                )
+
+                # ambil weight terbesar
+                df.loc[match, base_key] = np.maximum(
+                    df.loc[match, base_key],
+                    weight
+                )
+
+    elif mode == 'separate_weighted':
+
+        for base_key, entries in grouped.items():
+
+            for entry in entries:
+
+                prefix = entry['prefix']
+                patterns = entry['patterns']
+                weight = entry['weight']
+
+                if prefix == 'base':
+                    col_name = base_key
+                else:
+                    col_name = prefix.capitalize() + base_key
+
+                if len(patterns) == 0:
+                    df[col_name] = 0.0
+                    continue
+
+                match = match_patterns(
+                    df['diag_awal'],
+                    patterns
+                )
+
+                df[col_name] = match.astype(float)
+
+    else:
+        raise ValueError(
+            "mode harus 'merge_weighted' atau 'separate_weighted'"
+        )
+
+    # =========================
+    # CLEANUP
+    # =========================
+    df.drop(columns=['diag_awal'], inplace=True)
+
+    return df
 
 if __name__ == "__main__":
     if 0: # Diagnosa Pasien
-        df_rm = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMdiuretik.xlsx")
-        df_dict = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/Diagnosis_Diuretik.xlsx")
+        df_rm = pd.read_excel(r"D:\File_Syaki\SKRIPSINEW\variabelX\RMDiuretikFIX.xlsx")
+        df_dict = pd.read_excel(r"D:\File_Syaki\SKRIPSINEW\variabelX\Diagnosis_Diuretik.xlsx")
 
 
         cols = ['Diagnosa', 'Diagnosa.1']
@@ -442,9 +594,9 @@ if __name__ == "__main__":
 
         print ("selesai")  
 
-    if 1: # Status Komorbid dan Gangguan Elektrolit
-        df_rm = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMdiuretik.xlsx")
-        df_dict = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/Komorbid_GGElektro.xlsx")
+    if 0: # Status Komorbid dan Gangguan Elektrolit
+        df_rm = pd.read_excel(r"D:\File_Syaki\SKRIPSINEW\variabelX\RMDiuretikFIX.xlsx")
+        df_dict = pd.read_excel(r"D:\File_Syaki\SKRIPSINEW\variabelX\Komorbid_GGElektro.xlsx")
 
 
         cols = ['Diagnosa', 'Diagnosa.1']
@@ -460,18 +612,40 @@ if __name__ == "__main__":
 
     if 0: # Tambah kolom usia (merge and separate)
         df = add_usia_from_dob(
-            file_merge="/Users/lathifasyakira/Desktop/SKRIPSI/merge_s05e06d07.xlsx",
-            file_ref="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/diuretikfinal3bulan.xlsx",
-            output_file="/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/merge_with_usia.xlsx"             
+            file_merge=r"D:\File_Syaki\SKRIPSINEW\separate_diagnosaawal_diur.xlsx",
+            file_ref=r"D:\File_Syaki\SKRIPSINEW\diuretikfinal3bulan.xlsx",
+            output_file=r"D:\File_Syaki\SKRIPSINEW\separate_diagnosaawal_diur_with_usia.xlsx"             
             )
         
         print ("selesai")     
 
     if 0: # CCI
-        df_pasien = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/variabelX/RMDiuretik.xlsx")
-        df_cci = pd.read_excel("/Users/lathifasyakira/Desktop/SKRIPSI/CCI.xlsx")
+        df_pasien = pd.read_excel(r"D:\File_Syaki\SKRIPSINEW\RMDiuretikFIX.xlsx")
+        df_cci = pd.read_excel(r"D:\File_Syaki\SKRIPSINEW\CCI.xlsx")
         df_result_sum = hitung_cci_akumulasi(df_pasien, df_cci)
-        df_result_sum.to_excel("/Users/lathifasyakira/Desktop/SKRIPSI/CCIAkumulasi.xlsx", index=False)
+        df_result_sum.to_excel(r"D:\File_Syaki\SKRIPSINEW\CCIAkumulasi.xlsx", index=False)
         
-        print(df_result_sum.head())
-                         
+        print(df_result_sum.head()) 
+
+    if 0: # Ambil diagnosis awal aja
+        df_rm = pd.read_excel(r"D:\File_Syaki\SKRIPSINEW\variabelX\RMDiuretikFIX.xlsx")
+        df_dict = pd.read_excel(r"D:\File_Syaki\SKRIPSINEW\variabelX\Diagnosis_Diuretik.xlsx")
+
+
+        cols = ['Diagnosa', 'Diagnosa.1']
+
+        df_rm[cols] = df_rm[cols].replace(r'[\r\n]+', '|', regex=True)
+        df_dict = df_dict.replace(r'[\r\n]+', '|', regex=True)
+    
+        weight_config = {'sus': 0.5, 'ec': 0.6, 'dd': 0.7}
+
+        # 1. DIGABUNG (1 kolom per penyakit)
+        df_merge = create_diagnosis_awal_features(df_rm, df_dict, weight_map=weight_config, mode='merge_weighted')
+
+        # 2. DIPISAH (multi kolom)
+        df_sep = create_diagnosis_awal_features(df_rm, df_dict, weight_map=weight_config, mode='separate_weighted')
+
+        df_merge.to_excel('merge_diagnosaawal_diur.xlsx', index=False)
+        df_sep.to_excel('separate_diagnosaawal_diur.xlsx', index=False)   
+
+        print ("selesai")                     
