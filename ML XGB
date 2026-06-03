@@ -206,6 +206,239 @@ def run_xgboost_experiment(
 
     print("\n=== SELESAI XGBOOST ===")
 
+def run_xgboost_experiment_normalized(
+    file_path,
+    output_excel
+):
+
+    df = pd.read_excel(file_path)
+
+    df = df.dropna(subset=[
+        "delta",
+        "days"
+    ])
+
+    # HINDARI DIVIDE BY ZERO
+    df = df[df["days"] > 0]
+
+    # TARGET BARU
+    df["delta_per_day"] = (
+        df["delta"] / df["days"]
+    )
+
+    y = df["delta_per_day"]
+
+    mrn = df["MRN"]
+
+    X = df.drop(columns=[
+        "MRN",
+        "delta",
+        "delta_per_day",
+        "days"
+    ])
+
+    X = X.fillna(0)
+
+    # HYPERPARAMETER
+    param_grid = {
+        "n_estimators": [100, 300, 500, 1000],
+        "max_depth": [3, 6, 10, 15],
+        "learning_rate": [0.01, 0.05, 0.1, 0.2],
+        "subsample": [0.6, 0.8, 1.0],
+        "colsample_bytree": [0.6, 0.8, 1.0],
+    }
+
+    kfold = KFold(
+        n_splits=5,
+        shuffle=True,
+        random_state=42
+    )
+
+    print("=== TUNING XGBOOST NORMALIZED ===")
+
+    grid = GridSearchCV(
+        XGBRegressor(
+            objective="reg:squarederror",
+            random_state=42,
+            n_jobs=-1
+        ),
+        param_grid,
+        cv=kfold,
+        scoring="r2",
+        n_jobs=-1,
+        verbose=1
+    )
+
+    grid.fit(X, y)
+
+    print("Best params:", grid.best_params_)
+
+    results = []
+
+    for run in range(5):
+
+        print(f"\n===== TEST RUN {run+1} =====")
+
+        X_train, X_test, y_train, y_test, mrn_train, mrn_test = train_test_split(
+            X,
+            y,
+            mrn,
+            test_size=0.2,
+            random_state=run
+        )
+
+        model = XGBRegressor(
+            objective="reg:squarederror",
+            random_state=42,
+            n_jobs=-1,
+            **grid.best_params_
+        )
+
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+
+        r2 = r2_score(
+            y_test,
+            y_pred
+        )
+
+        mae = mean_absolute_error(
+            y_test,
+            y_pred
+        )
+
+        rmse = np.sqrt(
+            mean_squared_error(
+                y_test,
+                y_pred
+            )
+        )
+
+        spearman_corr, _ = spearmanr(
+            y_test,
+            y_pred
+        )
+
+        print(f"R2: {r2:.3f}")
+        print(f"MAE: {mae:.3f}")
+        print(f"RMSE: {rmse:.3f}")
+        print(f"Spearman: {spearman_corr:.3f}")
+
+        # SAVE PREDICTION
+        pred_df = pd.DataFrame({
+            "MRN": mrn_test.values,
+            "y_true": y_test.values,
+            "y_pred": y_pred
+        })
+
+        pred_path = output_excel.replace(
+            ".xlsx",
+            f"_prediction_run{run+1}.xlsx"
+        )
+
+        pred_df.to_excel(
+            pred_path,
+            index=False
+        )
+
+        # Y-Y PLOT
+        plt.figure(figsize=(6, 6))
+
+        plt.scatter(
+            y_test,
+            y_pred,
+            alpha=0.7
+        )
+
+        min_val = min(
+            y_test.min(),
+            y_pred.min()
+        )
+
+        max_val = max(
+            y_test.max(),
+            y_pred.max()
+        )
+
+        plt.plot(
+            [min_val, max_val],
+            [min_val, max_val],
+            linestyle="--"
+        )
+
+        plt.xlabel("Actual Delta/Day")
+        plt.ylabel("Predicted Delta/Day")
+
+        plt.title(
+            f"XGBoost Normalized Y-Y Plot Run {run+1}"
+        )
+
+        plt.tight_layout()
+
+        plot_path = output_excel.replace(
+            ".xlsx",
+            f"_yyplot_run{run+1}.png"
+        )
+
+        plt.savefig(
+            plot_path,
+            dpi=300
+        )
+
+        plt.close()
+
+        results.append({
+            "run": run + 1,
+            "r2": r2,
+            "mae": mae,
+            "rmse": rmse,
+            "spearman": spearman_corr
+        })
+
+    results_df = pd.DataFrame(results)
+
+    summary = pd.DataFrame({
+        "metric": ["mean", "std"],
+        "r2": [
+            results_df["r2"].mean(),
+            results_df["r2"].std()
+        ],
+        "mae": [
+            results_df["mae"].mean(),
+            results_df["mae"].std()
+        ],
+        "rmse": [
+            results_df["rmse"].mean(),
+            results_df["rmse"].std()
+        ],
+        "spearman": [
+            results_df["spearman"].mean(),
+            results_df["spearman"].std()
+        ]
+    })
+
+    joblib.dump(
+        model,
+        "XGB_diur_weight_akum_normalized_y.pkl"
+    )
+
+    with pd.ExcelWriter(output_excel) as writer:
+
+        results_df.to_excel(
+            writer,
+            sheet_name="per_run",
+            index=False
+        )
+
+        summary.to_excel(
+            writer,
+            sheet_name="summary",
+            index=False
+        )
+
+    print("\n=== SELESAI XGBOOST NORMALIZED ===")
+
 def run_xgboost_classification(
     file_path,
     output_excel,
@@ -497,16 +730,24 @@ def run_xgboost_classification(
 if __name__ == "__main__": 
     if 0: # XG BOOST REGRESI
         run_xgboost_experiment(
-            file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
-            output_excel="C:/Users/rashi/SKRIPSI/HASILXGB/Regresi/weight_akum_diur_normalized.xlsx"
+            file_path=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_weight_akum_diuretik.xlsx",
+            output_excel=r"D:\File_Syaki\SKRIPSINEW\HASILXGBoost\Regresi\weight_akum_diuretik.xlsx"
+        )
+
+    print("selesai xgboost regresi")
+
+    if 1: # XG BOOST REGRESI NORMALIZED
+        run_xgboost_experiment(
+            file_path=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_weight_akum_diuretik.xlsx",
+            output_excel=r"D:\File_Syaki\SKRIPSINEW\HASILXGBoost\Regresi\weight_akum_diuretik_normalized.xlsx"
         )
 
     print("selesai xgboost regresi")
 
     if 0: #XG BOOST KLASIFIKASI
         run_xgboost_classification(
-            file_path="C:/Users/rashi/SKRIPSI/master_weight_akum_diuretik.xlsx",
-            output_excel="C:/Users/rashi/SKRIPSI/HASILXGB/Klasifikasi/XGB_Precision_classweight_numweight_akum_diur.xlsx",
+            file_path=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_weight_akum_diuretik.xlsx",
+            output_excel=r"D:\File_Syaki\SKRIPSINEW\HASILXGBoost\Klasifikasi\weight_akum_diuretik_normalized.xlsx",
             batas_atas=-9,
             batas_bawah=-10
         )
