@@ -1657,14 +1657,15 @@ if __name__ == "__main__":
         print("selesai CM") 
 
     if 0: # Feature Importance
-        file_path=r"D:\File_Syaki\SKRIPSINEW\filemaster\master_weight_akum_diuretik.xlsx"
-        output_excel=r"D:\File_Syaki\SKRIPSINEW\HASILRF\Klasifikasi\Precision_classweight_numweight_akum_diur.xlsx"
-        batas_atas=-9,
-        batas_bawah=-10
+        model_path=r"C:/Users/rashi/SKRIPSI/HASILRF/Regresi/raasi_onehot_akum_yperdelta.pkl"
+        file_path=r"C:/Users/rashi/SKRIPSI/MasterRAASi/master_onehot_akum_raasi.xlsx"
+        output_excel=r"C:/Users/rashi/SKRIPSI/HASILRF/Regresi/hasil_onehot_akum_raasi_normalized_feature_importance.xlsx"
+        batas_atas=0,
+        batas_bawah=-2
 
         df = pd.read_excel(file_path)
 
-        df = df.dropna(subset=["delta", "days"])
+        #df = df.dropna(subset=["delta", "days"])
 
         df = df[df["days"] > 0]
 
@@ -1694,7 +1695,7 @@ if __name__ == "__main__":
         X = X.fillna(0)
 
         feat_imp = extract_rf_feature_importance(
-            model_path=output_excel.replace(".xlsx", ".pkl"),
+            model_path,
             feature_columns=X.columns.tolist(),
             output_excel=output_excel.replace(".xlsx", "_feature_importance.xlsx"),
 
